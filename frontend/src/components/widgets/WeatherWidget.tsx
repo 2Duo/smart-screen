@@ -63,6 +63,7 @@ export default function WeatherWidget({
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'location' | 'display' | 'layout'>('location')
   const [selectedLayoutArea, setSelectedLayoutArea] = useState<string | null>(null)
+  const [isLayoutEditing, setIsLayoutEditing] = useState(false)
 
   // Weather data query
   const { data: weather, isLoading, error, refetch } = useQuery<WeatherData>({
@@ -175,14 +176,13 @@ export default function WeatherWidget({
             地点
           </button>
           <button
-            onClick={() => setActiveTab('layout')}
-            className={`flex-1 px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ${
-              activeTab === 'layout'
-                ? 'bg-gradient-to-r from-blue-400/30 to-purple-400/30 text-white border border-blue-300/30 shadow-lg'
-                : 'text-white/60 hover:text-white/80 hover:bg-white/10'
-            }`}
+            onClick={() => {
+              setIsSettingsOpen(false)
+              setIsLayoutEditing(true)
+            }}
+            className="flex-1 px-4 py-3 text-sm font-semibold rounded-xl text-white/60 hover:text-white/80 hover:bg-white/10"
           >
-            レイアウト
+            レイアウト編集
           </button>
           <button
             onClick={() => setActiveTab('display')}
@@ -245,147 +245,7 @@ export default function WeatherWidget({
           </>
         )}
 
-        {activeTab === 'layout' && (
-          <div className="space-y-4">
-            <div className="text-sm text-white/80 font-medium mb-4">レイアウトをカスタマイズ</div>
 
-            {/* Layout Preview styled like the widget */}
-            <div className="space-y-4">
-              <div
-                className="p-2 rounded-xl border border-white/30 cursor-pointer hover:bg-white/10"
-                onClick={() => setSelectedLayoutArea('primary')}
-              >
-                <div className="text-center">
-                  {(() => {
-                    switch (currentLayoutConfig.primary) {
-                      case 'temperature':
-                        return <div className="text-6xl font-bold leading-tight">{weather?.current.temperature}°C</div>
-                      case 'feelsLike':
-                        return <div className="text-6xl font-bold leading-tight">体感 {weather?.current.feelsLike}°C</div>
-                      case 'tempMinMax':
-                        return <div className="text-6xl font-bold leading-tight">{weather?.current.tempMin}°C / {weather?.current.tempMax}°C</div>
-                      case 'description':
-                        return <div className="text-6xl font-bold leading-tight">{weather?.current.description}</div>
-                      case 'location':
-                        return <div className="text-6xl font-bold leading-tight">{weather?.location}</div>
-                      case 'humidity':
-                        return <div className="text-6xl font-bold leading-tight">{weather?.current.humidity}%</div>
-                      case 'windSpeed':
-                        return <div className="text-6xl font-bold leading-tight">{weather?.current.windSpeed}m/s</div>
-                      case 'precipitationProbability':
-                        return <div className="text-6xl font-bold leading-tight">{weather?.current.precipitationProbability}%</div>
-                      default:
-                        return <div className="text-white/40">なし</div>
-                    }
-                  })()}
-                </div>
-              </div>
-
-              <div
-                className="p-2 rounded-xl border border-white/30 cursor-pointer hover:bg-white/10"
-                onClick={() => setSelectedLayoutArea('secondary')}
-              >
-                <div className="text-center">
-                  {(() => {
-                    switch (currentLayoutConfig.secondary) {
-                      case 'temperature':
-                        return <div className="text-xl text-white/80 font-medium">{weather?.current.temperature}°C</div>
-                      case 'feelsLike':
-                        return <div className="text-xl text-white/80 font-medium">体感 {weather?.current.feelsLike}°C</div>
-                      case 'tempMinMax':
-                        return <div className="text-xl text-white/80 font-medium">{weather?.current.tempMin}°C / {weather?.current.tempMax}°C</div>
-                      case 'description':
-                        return <div className="text-xl text-white/80 font-medium">{weather?.current.description}</div>
-                      case 'location':
-                        return <div className="text-xl text-white/80 font-medium">{weather?.location}</div>
-                      case 'humidity':
-                        return <div className="text-xl text-white/80 font-medium">湿度 {weather?.current.humidity}%</div>
-                      case 'windSpeed':
-                        return <div className="text-xl text-white/80 font-medium">風速 {weather?.current.windSpeed}m/s</div>
-                      case 'precipitationProbability':
-                        return <div className="text-xl text-white/80 font-medium">降水確率 {weather?.current.precipitationProbability}%</div>
-                      default:
-                        return <div className="text-white/40">なし</div>
-                    }
-                  })()}
-                </div>
-              </div>
-
-              <div
-                className="p-2 rounded-xl border border-white/30 cursor-pointer hover:bg-white/10"
-                onClick={() => setSelectedLayoutArea('tertiary')}
-              >
-                <div className="text-center">
-                  {(() => {
-                    switch (currentLayoutConfig.tertiary) {
-                      case 'temperature':
-                        return <div className="text-lg text-white/60 font-medium">{weather?.current.temperature}°C</div>
-                      case 'feelsLike':
-                        return <div className="text-lg text-white/60 font-medium">体感 {weather?.current.feelsLike}°C</div>
-                      case 'tempMinMax':
-                        return <div className="text-lg text-white/60 font-medium">{weather?.current.tempMin}°C / {weather?.current.tempMax}°C</div>
-                      case 'description':
-                        return <div className="text-lg text-white/60 font-medium">{weather?.current.description}</div>
-                      case 'location':
-                        return <div className="text-lg text-white/60 font-medium">{weather?.location}</div>
-                      case 'humidity':
-                        return <div className="text-lg text-white/60 font-medium">湿度 {weather?.current.humidity}%</div>
-                      case 'windSpeed':
-                        return <div className="text-lg text-white/60 font-medium">風速 {weather?.current.windSpeed}m/s</div>
-                      case 'precipitationProbability':
-                        return <div className="text-lg text-white/60 font-medium">降水確率 {weather?.current.precipitationProbability}%</div>
-                      default:
-                        return <div className="text-white/40">なし</div>
-                    }
-                  })()}
-                </div>
-              </div>
-            </div>
-
-            {/* Selection Modal */}
-            {selectedLayoutArea && (
-              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-20 flex items-center justify-center p-4">
-                <div className="bg-gradient-to-br from-black/80 via-black/70 to-black/80 border border-white/20 rounded-2xl p-5 max-w-sm w-full max-h-96 overflow-y-auto">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-lg font-bold text-white">項目を選択</h4>
-                    <button
-                      onClick={() => setSelectedLayoutArea(null)}
-                      className="p-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 transition-all duration-300"
-                    >
-                      <X size={16} className="text-white/70" />
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => {
-                        handleLayoutConfigChange(selectedLayoutArea, 'none')
-                        setSelectedLayoutArea(null)
-                      }}
-                      className="w-full text-left px-3 py-2 bg-gradient-to-r from-white/5 to-white/10 hover:from-white/15 hover:to-white/20 rounded-xl transition-all duration-300 border border-white/10 hover:border-white/20"
-                    >
-                      <span className="text-sm text-white/80 font-medium">なし</span>
-                    </button>
-                    {weatherItems.map(({ key, label, icon: Icon }) => (
-                      <button
-                        key={key}
-                        onClick={() => {
-                          handleLayoutConfigChange(selectedLayoutArea, key)
-                          setSelectedLayoutArea(null)
-                        }}
-                        className="w-full text-left px-3 py-2 bg-gradient-to-r from-white/5 to-white/10 hover:from-white/15 hover:to-white/20 rounded-xl transition-all duration-300 border border-white/10 hover:border-white/20"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Icon size={14} className="text-white/60" />
-                          <span className="text-sm text-white/80 font-medium">{label}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {activeTab === 'display' && (
           <div className="max-h-64 overflow-y-auto space-y-3">
@@ -509,7 +369,10 @@ export default function WeatherWidget({
       <div className="space-y-4">
         {/* Dynamic Layout - Primary Display */}
         {currentLayoutConfig.primary && currentLayoutConfig.primary !== 'none' && (
-          <div className="text-center">
+          <div
+            className={isLayoutEditing ? 'text-center p-2 rounded-xl border border-blue-400 cursor-pointer' : 'text-center'}
+            onClick={isLayoutEditing ? () => setSelectedLayoutArea('primary') : undefined}
+          >
             {(() => {
               switch (currentLayoutConfig.primary) {
                 case 'temperature':
@@ -528,8 +391,8 @@ export default function WeatherWidget({
                   return <div className="text-6xl font-bold leading-tight">{weather.current.windSpeed}m/s</div>
                 case 'precipitationProbability':
                   return <div className="text-6xl font-bold leading-tight">{weather.current.precipitationProbability}%</div>
-                default:
-                  return null
+              default:
+                return null
               }
             })()}
           </div>
@@ -537,7 +400,10 @@ export default function WeatherWidget({
 
         {/* Dynamic Layout - Secondary Display */}
         {currentLayoutConfig.secondary && currentLayoutConfig.secondary !== 'none' && (
-          <div className="text-center">
+          <div
+            className={isLayoutEditing ? 'text-center p-2 rounded-xl border border-blue-400 cursor-pointer' : 'text-center'}
+            onClick={isLayoutEditing ? () => setSelectedLayoutArea('secondary') : undefined}
+          >
             {(() => {
               switch (currentLayoutConfig.secondary) {
                 case 'temperature':
@@ -556,8 +422,8 @@ export default function WeatherWidget({
                   return <div className="text-xl text-white/80 font-medium">風速 {weather.current.windSpeed}m/s</div>
                 case 'precipitationProbability':
                   return <div className="text-xl text-white/80 font-medium">降水確率 {weather.current.precipitationProbability}%</div>
-                default:
-                  return null
+              default:
+                return null
               }
             })()}
           </div>
@@ -565,7 +431,10 @@ export default function WeatherWidget({
 
         {/* Dynamic Layout - Tertiary Display */}
         {currentLayoutConfig.tertiary && currentLayoutConfig.tertiary !== 'none' && (
-          <div className="text-center">
+          <div
+            className={isLayoutEditing ? 'text-center p-2 rounded-xl border border-blue-400 cursor-pointer' : 'text-center'}
+            onClick={isLayoutEditing ? () => setSelectedLayoutArea('tertiary') : undefined}
+          >
             {(() => {
               switch (currentLayoutConfig.tertiary) {
                 case 'temperature':
@@ -584,8 +453,8 @@ export default function WeatherWidget({
                   return <div className="text-lg text-white/60 font-medium">風速 {weather.current.windSpeed}m/s</div>
                 case 'precipitationProbability':
                   return <div className="text-lg text-white/60 font-medium">降水確率 {weather.current.precipitationProbability}%</div>
-                default:
-                  return null
+              default:
+                return null
               }
             })()}
           </div>
@@ -699,6 +568,57 @@ export default function WeatherWidget({
           </div>
         )}
       </div>
+
+      {isLayoutEditing && (
+        <button
+          onClick={() => setIsLayoutEditing(false)}
+          className="absolute top-2 right-2 p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20"
+        >
+          <X size={16} className="text-white" />
+        </button>
+      )}
+
+      {isLayoutEditing && selectedLayoutArea && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-20 flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-black/80 via-black/70 to-black/80 border border-white/20 rounded-2xl p-5 max-w-sm w-full max-h-96 overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-bold text-white">項目を選択</h4>
+              <button
+                onClick={() => setSelectedLayoutArea(null)}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 transition-all duration-300"
+              >
+                <X size={16} className="text-white/70" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  handleLayoutConfigChange(selectedLayoutArea, 'none')
+                  setSelectedLayoutArea(null)
+                }}
+                className="w-full text-left px-3 py-2 bg-gradient-to-r from-white/5 to-white/10 hover:from-white/15 hover:to-white/20 rounded-xl transition-all duration-300 border border-white/10 hover:border-white/20"
+              >
+                <span className="text-sm text-white/80 font-medium">なし</span>
+              </button>
+              {weatherItems.map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    handleLayoutConfigChange(selectedLayoutArea, key)
+                    setSelectedLayoutArea(null)
+                  }}
+                  className="w-full text-left px-3 py-2 bg-gradient-to-r from-white/5 to-white/10 hover:from-white/15 hover:to-white/20 rounded-xl transition-all duration-300 border border-white/10 hover:border-white/20"
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon size={14} className="text-white/60" />
+                    <span className="text-sm text-white/80 font-medium">{label}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </WidgetTemplate>
   )
 }
