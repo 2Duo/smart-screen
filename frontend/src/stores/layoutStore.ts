@@ -1,11 +1,14 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Layout, LayoutItem } from '../../../shared/types'
+import type { Layout, LayoutItem, WidgetType } from '../../../shared/types'
+import { widgetMetadata } from './widgetStore'
 
 interface LayoutState {
   layout: Layout
   updateLayout: (newLayout: Layout) => void
   updateLayoutItem: (item: LayoutItem) => void
+  addWidgetToLayout: (widgetId: string, widgetType: WidgetType) => void
+  removeWidgetFromLayout: (widgetId: string) => void
   resetLayout: () => void
 }
 
@@ -29,6 +32,34 @@ export const useLayoutStore = create<LayoutState>()(
           layoutItem.i === item.i ? { ...layoutItem, ...item } : layoutItem
         )
         set({ layout: updatedLayout })
+      },
+      
+      addWidgetToLayout: (widgetId: string, widgetType: WidgetType) => {
+        const metadata = widgetMetadata[widgetType]
+        const currentLayout = get().layout
+        
+        // Find a good position for the new widget
+        const maxY = Math.max(...currentLayout.map(item => item.y + item.h), 0)
+        
+        const newLayoutItem: LayoutItem = {
+          i: widgetId,
+          x: 0,
+          y: maxY,
+          w: metadata.defaultSize.w,
+          h: metadata.defaultSize.h,
+          minW: metadata.minSize.w,
+          minH: metadata.minSize.h,
+        }
+        
+        set((state) => ({
+          layout: [...state.layout, newLayoutItem],
+        }))
+      },
+      
+      removeWidgetFromLayout: (widgetId: string) => {
+        set((state) => ({
+          layout: state.layout.filter(item => item.i !== widgetId),
+        }))
       },
       
       resetLayout: () => {
