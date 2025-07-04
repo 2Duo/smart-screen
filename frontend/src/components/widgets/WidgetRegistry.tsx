@@ -2,15 +2,87 @@ import React from 'react'
 import type { WidgetType, Widget } from '../../../../shared/types'
 import ClockWidget from './ClockWidget'
 import WeatherWidget from './WeatherWidget'
+import { WidgetTemplate } from './WidgetTemplate'
+import { Calendar, Newspaper, Image, Settings, Trash2 } from 'lucide-react'
+
+/*
+ * WIDGET REGISTRY - NEW WIDGET IMPLEMENTATION GUIDE
+ * ================================================
+ * 
+ * When adding a new widget to this registry, you MUST follow the standardized
+ * UI template defined in WidgetTemplate.tsx. This ensures consistent design
+ * and user experience across all widgets.
+ * 
+ * STEP-BY-STEP WIDGET CREATION:
+ * 
+ * 1. CREATE WIDGET COMPONENT:
+ *    - Import and use WidgetTemplate as the root component
+ *    - Follow the template's design guidelines (see WidgetTemplate.tsx)
+ *    - Use appropriate icons from lucide-react (32px for headers)
+ *    - Ensure large, readable fonts for primary information (text-6xl+)
+ * 
+ * 2. REGISTER IN widgetComponents:
+ *    - Add your component to the registry below
+ *    - Replace placeholder implementations with real components
+ * 
+ * 3. UPDATE widgetMetadata (in widgetStore.ts):
+ *    - Add appropriate icon, name, description
+ *    - Set reasonable defaultSize and minSize values
+ * 
+ * 4. ENSURE ACCESSIBILITY:
+ *    - All important information should be readable from distance
+ *    - Use consistent color scheme (text-white, text-white/80, text-white/60)
+ *    - Maintain proper spacing and hierarchy
+ * 
+ * EXAMPLE WIDGET IMPLEMENTATION:
+ * ```tsx
+ * export default function MyWidget({ customProp }: MyWidgetProps) {
+ *   return (
+ *     <WidgetTemplate
+ *       icon={MyIcon}
+ *       title="My Widget"
+ *       onSettings={() => handleSettings()}
+ *       footer="Optional footer text"
+ *     >
+ *       <div className="text-center">
+ *         <div className="text-6xl font-bold mb-4">
+ *           {primaryData}
+ *         </div>
+ *         <div className="text-xl text-white/80">
+ *           {secondaryData}
+ *         </div>
+ *       </div>
+ *     </WidgetTemplate>
+ *   )
+ * }
+ * ```
+ */
 
 // Widget component registry
 const widgetComponents: Record<WidgetType, React.ComponentType<any>> = {
   clock: ClockWidget,
   weather: WeatherWidget,
-  calendar: () => <div className="h-full flex items-center justify-center text-white">カレンダー（未実装）</div>,
-  news: () => <div className="h-full flex items-center justify-center text-white">ニュース（未実装）</div>,
-  photo: () => <div className="h-full flex items-center justify-center text-white">写真（未実装）</div>,
-  custom: () => <div className="h-full flex items-center justify-center text-white">カスタム（未実装）</div>,
+  // TODO: Implement these widgets following the WidgetTemplate pattern
+  calendar: () => (
+    <WidgetTemplate icon={Calendar} title="カレンダー">
+      <div className="text-center text-xl text-white/80">未実装</div>
+    </WidgetTemplate>
+  ),
+  news: () => (
+    <WidgetTemplate icon={Newspaper} title="ニュース">
+      <div className="text-center text-xl text-white/80">未実装</div>
+    </WidgetTemplate>
+  ),
+  photo: () => (
+    <WidgetTemplate icon={Image} title="写真">
+      <div className="text-center text-xl text-white/80">未実装</div>
+    </WidgetTemplate>
+  ),
+  custom: () => (
+    <WidgetTemplate icon={Settings} title="カスタム">
+      <div className="text-center text-xl text-white/80">未実装</div>
+    </WidgetTemplate>
+  ),
 }
 
 interface WidgetRendererProps {
@@ -43,16 +115,12 @@ export const WidgetRenderer: React.FC<WidgetRendererProps> = ({
       
       {isEditMode && (
         <>
-          {/* Edit overlay */}
-          <div className="absolute inset-0 bg-black/10 backdrop-blur-[0.5px] border-2 border-white/30 rounded-lg pointer-events-none">
-            <div className="absolute top-2 left-2 text-white/60 text-xs font-medium">
-              編集モード
-            </div>
-          </div>
+          {/* Edit overlay - Clean blur only */}
+          <div className="absolute inset-0 backdrop-blur-md rounded-2xl pointer-events-none"></div>
           
-          {/* Delete button - larger and more prominent */}
+          {/* Delete button - Enhanced Liquid Glass */}
           <div 
-            className="absolute -top-2 -right-2 z-50"
+            className="absolute -top-4 -right-4 z-50"
             onMouseDown={(e) => {
               e.stopPropagation()
               e.preventDefault()
@@ -76,10 +144,10 @@ export const WidgetRenderer: React.FC<WidgetRendererProps> = ({
                 e.stopPropagation()
                 e.preventDefault()
               }}
-              className="bg-red-500 hover:bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center text-lg font-bold transition-colors shadow-lg border-2 border-white/20"
+              className="group relative w-14 h-14 backdrop-blur-2xl bg-gradient-to-br from-red-400/20 via-rose-400/15 to-pink-400/20 hover:from-red-300/25 hover:via-rose-300/20 hover:to-pink-300/25 border border-red-300/30 hover:border-red-200/40 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-2xl shadow-red-500/20 hover:shadow-red-400/30 transform hover:scale-110 hover:rotate-3"
               title="ウィジェットを削除"
             >
-              ×
+              <Trash2 size={18} className="text-white/90 group-hover:text-white transition-all duration-300 group-hover:scale-110" />
             </button>
           </div>
         </>

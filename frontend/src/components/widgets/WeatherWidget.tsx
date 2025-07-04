@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Cloud, Sun, CloudRain, Droplets, Wind, Settings, Search } from 'lucide-react'
+import { Cloud, Sun, CloudRain, Droplets, Wind, Search, Eye, Thermometer, Gauge, Compass, Sunrise, Sunset, Zap, CloudDrizzle, X } from 'lucide-react'
 import type { WeatherData, CitySearchResult, APIResponse } from '../../../../shared/types'
 import { useWidgetStore } from '../../stores/widgetStore'
+import { WidgetTemplate } from './WidgetTemplate'
 
 interface WeatherWidgetProps {
   location?: string
   showForecast?: boolean
+  displayOptions?: any
+  layoutConfig?: any
   onLocationChange?: (location: string) => void
   widgetId?: string
 }
@@ -24,14 +27,42 @@ const weatherIcons = {
 
 export default function WeatherWidget({ 
   location: propLocation,
+  displayOptions: propDisplayOptions,
+  layoutConfig: propLayoutConfig,
   onLocationChange,
   widgetId
 }: WeatherWidgetProps) {
   const { updateWidget, getWidget } = useWidgetStore()
   const widget = widgetId ? getWidget(widgetId) : null
   const currentLocation = propLocation || widget?.config?.location || 'Tokyo'
+  const currentLayoutConfig = propLayoutConfig || widget?.config?.layoutConfig || {
+    primary: 'temperature',
+    secondary: 'description',
+    tertiary: 'location',
+    details: ['humidity', 'windSpeed', 'precipitationProbability'],
+  }
+  const currentDisplayOptions = propDisplayOptions || widget?.config?.displayOptions || {
+    temperature: true,
+    feelsLike: false,
+    tempMinMax: false,
+    humidity: true,
+    pressure: false,
+    windSpeed: true,
+    windDirection: false,
+    windGust: false,
+    visibility: false,
+    cloudiness: false,
+    sunrise: false,
+    sunset: false,
+    uvIndex: false,
+    precipitationProbability: true,
+    description: true,
+    location: true,
+  }
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeTab, setActiveTab] = useState<'location' | 'display' | 'layout'>('location')
+  const [selectedLayoutArea, setSelectedLayoutArea] = useState<string | null>(null)
 
   // Weather data query
   const { data: weather, isLoading, error, refetch } = useQuery<WeatherData>({
@@ -81,76 +112,123 @@ export default function WeatherWidget({
     setSearchQuery('')
   }
 
-  if (isLoading) {
-    return (
-      <div className="h-full flex items-center justify-center text-white">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-      </div>
-    )
+  const handleDisplayOptionChange = (option: string, value: boolean) => {
+    if (widgetId) {
+      const newDisplayOptions = { ...currentDisplayOptions, [option]: value }
+      updateWidget(widgetId, { ...widget?.config, displayOptions: newDisplayOptions })
+    }
   }
 
-  if (error) {
-    const is404Error = (error as any).statusCode === 404
+  const handleLayoutConfigChange = (area: string, value: string | string[]) => {
+    if (widgetId) {
+      const newLayoutConfig = { ...currentLayoutConfig, [area]: value }
+      updateWidget(widgetId, { ...widget?.config, layoutConfig: newLayoutConfig })
+    }
+  }
+
+  // Available weather items for layout selection
+  const weatherItems = [
+    { key: 'temperature', label: '気温', icon: Thermometer },
+    { key: 'feelsLike', label: '体感温度', icon: Thermometer },
+    { key: 'tempMinMax', label: '最高/最低気温', icon: Thermometer },
+    { key: 'description', label: '天気説明', icon: Cloud },
+    { key: 'humidity', label: '湿度', icon: Droplets },
+    { key: 'pressure', label: '気圧', icon: Gauge },
+    { key: 'windSpeed', label: '風速', icon: Wind },
+    { key: 'windDirection', label: '風向', icon: Compass },
+    { key: 'windGust', label: '突風', icon: Wind },
+    { key: 'visibility', label: '視界', icon: Eye },
+    { key: 'cloudiness', label: '雲量', icon: Cloud },
+    { key: 'sunrise', label: '日の出', icon: Sunrise },
+    { key: 'sunset', label: '日の入', icon: Sunset },
+    { key: 'uvIndex', label: 'UV指数', icon: Zap },
+    { key: 'precipitationProbability', label: '降水確率', icon: CloudDrizzle },
+    { key: 'location', label: '地点名', icon: Search },
+  ]
+
+  // Settings Panel Component
+  const renderSettingsPanel = () => {
+    if (!isSettingsOpen) return null
     
     return (
-      <div className="h-full flex flex-col justify-between p-2 text-white relative">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Cloud size={24} className="text-white/80" />
-            <span className="text-lg font-medium text-white/80">天気</span>
-          </div>
+      <div className="absolute top-0 left-0 right-0 bottom-0 backdrop-blur-3xl bg-gradient-to-br from-black/60 via-black/50 to-black/60 border border-white/20 rounded-2xl p-5 z-10">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-bold text-white tracking-wide">天気設定</h3>
           <button
-            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-            className="p-1 rounded hover:bg-white/10 transition-colors"
+            onClick={() => setIsSettingsOpen(false)}
+            className="group p-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 transition-all duration-300"
           >
-            <Settings size={16} className="text-white/60" />
+            <X size={16} className="text-white/70 group-hover:text-white transition-colors group-hover:rotate-90" />
+          </button>
+        </div>
+        
+        {/* Tab Navigation */}
+        <div className="flex gap-2 mb-6 bg-gradient-to-r from-white/10 to-white/15 rounded-2xl p-2 backdrop-blur-xl border border-white/20">
+          <button
+            onClick={() => setActiveTab('location')}
+            className={`flex-1 px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ${
+              activeTab === 'location'
+                ? 'bg-gradient-to-r from-blue-400/30 to-purple-400/30 text-white border border-blue-300/30 shadow-lg'
+                : 'text-white/60 hover:text-white/80 hover:bg-white/10'
+            }`}
+          >
+            地点
+          </button>
+          <button
+            onClick={() => setActiveTab('layout')}
+            className={`flex-1 px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ${
+              activeTab === 'layout'
+                ? 'bg-gradient-to-r from-blue-400/30 to-purple-400/30 text-white border border-blue-300/30 shadow-lg'
+                : 'text-white/60 hover:text-white/80 hover:bg-white/10'
+            }`}
+          >
+            レイアウト
+          </button>
+          <button
+            onClick={() => setActiveTab('display')}
+            className={`flex-1 px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ${
+              activeTab === 'display'
+                ? 'bg-gradient-to-r from-blue-400/30 to-purple-400/30 text-white border border-blue-300/30 shadow-lg'
+                : 'text-white/60 hover:text-white/80 hover:bg-white/10'
+            }`}
+          >
+            表示項目
           </button>
         </div>
 
-        {/* Settings panel */}
-        {isSettingsOpen && (
-          <div className="absolute top-0 left-0 right-0 bottom-0 bg-black/90 backdrop-blur-sm rounded-lg p-3 z-10">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium text-white">地点を選択</h3>
-              <button
-                onClick={() => setIsSettingsOpen(false)}
-                className="text-white/60 hover:text-white"
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="mb-3">
-              <p className="text-xs text-white/60 mb-2">
-                現在の地点: {currentLocation}
+        {activeTab === 'location' && (
+          <>
+            <div className="mb-5">
+              <p className="text-sm text-white/80 font-medium mb-3">
+                現在の地点: <span className="text-white bg-gradient-to-r from-blue-400/20 to-purple-400/20 px-3 py-1 rounded-xl">{currentLocation}</span>
               </p>
-              <div className="flex items-center gap-2 bg-white/10 rounded px-2 py-1">
-                <Search size={14} className="text-white/60" />
+              <div className="flex items-center gap-3 bg-gradient-to-r from-white/10 to-white/15 rounded-2xl px-4 py-3 backdrop-blur-xl border border-white/20">
+                <Search size={18} className="text-white/60" />
                 <input
                   type="text"
                   placeholder="都市名を入力..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent text-white text-sm flex-1 outline-none placeholder-white/60"
+                  className="bg-transparent text-white text-base flex-1 outline-none placeholder-white/60 font-medium"
                   autoFocus
                 />
               </div>
             </div>
 
-            <div className="max-h-32 overflow-y-auto">
+            <div className="max-h-40 overflow-y-auto space-y-2">
               {isSearching && searchQuery.length >= 2 && (
-                <div className="text-center py-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white/60 mx-auto"></div>
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white/60 mx-auto"></div>
                 </div>
               )}
               
               {cities && cities.length > 0 && (
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {cities.map((city, index) => (
                     <button
                       key={index}
                       onClick={() => handleLocationSelect(city.name)}
-                      className="w-full text-left px-2 py-1 text-sm text-white/80 hover:bg-white/10 rounded transition-colors"
+                      className="w-full text-left px-4 py-3 text-sm text-white/80 hover:text-white bg-gradient-to-r from-white/5 to-white/10 hover:from-white/15 hover:to-white/20 rounded-xl transition-all duration-300 border border-white/10 hover:border-white/20 font-medium"
                     >
                       {city.displayName}
                     </button>
@@ -159,42 +237,206 @@ export default function WeatherWidget({
               )}
               
               {searchQuery.length >= 2 && cities && cities.length === 0 && !isSearching && (
-                <div className="text-center py-2 text-white/60 text-sm">
+                <div className="text-center py-4 text-white/60 text-sm font-medium">
                   該当する都市が見つかりません
                 </div>
               )}
             </div>
+          </>
+        )}
+
+        {activeTab === 'layout' && (
+          <div className="space-y-4">
+            <div className="text-sm text-white/80 font-medium mb-4">レイアウトをカスタマイズ</div>
+            
+            {/* Primary Display Area */}
+            <div 
+              className="bg-gradient-to-r from-white/10 to-white/15 rounded-xl p-4 border border-white/20 cursor-pointer hover:from-white/15 hover:to-white/20 transition-all duration-300"
+              onClick={() => setSelectedLayoutArea('primary')}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-white">メイン表示</span>
+                <span className="text-xs text-white/60">最大サイズ</span>
+              </div>
+              <div className="text-2xl font-bold text-center py-4 bg-white/5 rounded-lg">
+                {weatherItems.find(item => item.key === currentLayoutConfig.primary)?.label || 'なし'}
+              </div>
+            </div>
+
+            {/* Secondary Display Area */}
+            <div 
+              className="bg-gradient-to-r from-white/10 to-white/15 rounded-xl p-3 border border-white/20 cursor-pointer hover:from-white/15 hover:to-white/20 transition-all duration-300"
+              onClick={() => setSelectedLayoutArea('secondary')}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-white">セカンダリ表示</span>
+                <span className="text-xs text-white/60">中サイズ</span>
+              </div>
+              <div className="text-lg font-medium text-center py-2 bg-white/5 rounded-lg">
+                {weatherItems.find(item => item.key === currentLayoutConfig.secondary)?.label || 'なし'}
+              </div>
+            </div>
+
+            {/* Tertiary Display Area */}
+            <div 
+              className="bg-gradient-to-r from-white/10 to-white/15 rounded-xl p-3 border border-white/20 cursor-pointer hover:from-white/15 hover:to-white/20 transition-all duration-300"
+              onClick={() => setSelectedLayoutArea('tertiary')}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-white">サード表示</span>
+                <span className="text-xs text-white/60">小サイズ</span>
+              </div>
+              <div className="text-base font-medium text-center py-2 bg-white/5 rounded-lg">
+                {weatherItems.find(item => item.key === currentLayoutConfig.tertiary)?.label || 'なし'}
+              </div>
+            </div>
+
+            {/* Selection Modal */}
+            {selectedLayoutArea && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-20 flex items-center justify-center p-4">
+                <div className="bg-gradient-to-br from-black/80 via-black/70 to-black/80 border border-white/20 rounded-2xl p-5 max-w-sm w-full max-h-96 overflow-y-auto">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-bold text-white">項目を選択</h4>
+                    <button
+                      onClick={() => setSelectedLayoutArea(null)}
+                      className="p-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 transition-all duration-300"
+                    >
+                      <X size={16} className="text-white/70" />
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        handleLayoutConfigChange(selectedLayoutArea, 'none')
+                        setSelectedLayoutArea(null)
+                      }}
+                      className="w-full text-left px-3 py-2 bg-gradient-to-r from-white/5 to-white/10 hover:from-white/15 hover:to-white/20 rounded-xl transition-all duration-300 border border-white/10 hover:border-white/20"
+                    >
+                      <span className="text-sm text-white/80 font-medium">なし</span>
+                    </button>
+                    {weatherItems.map(({ key, label, icon: Icon }) => (
+                      <button
+                        key={key}
+                        onClick={() => {
+                          handleLayoutConfigChange(selectedLayoutArea, key)
+                          setSelectedLayoutArea(null)
+                        }}
+                        className="w-full text-left px-3 py-2 bg-gradient-to-r from-white/5 to-white/10 hover:from-white/15 hover:to-white/20 rounded-xl transition-all duration-300 border border-white/10 hover:border-white/20"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Icon size={14} className="text-white/60" />
+                          <span className="text-sm text-white/80 font-medium">{label}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <Cloud className="mx-auto mb-4 text-white/60" size={48} />
-            <p className="text-xl text-white/80 font-medium mb-2">
-              {is404Error ? '地点が見つかりません' : '天気情報を取得できません'}
-            </p>
-            <p className="text-base text-white/60 mt-2">
-              {is404Error ? `"${currentLocation}"は存在しません` : (error as any)?.message || 'エラーが発生しました'}
-            </p>
-            <div className="mt-4 flex gap-3 justify-center">
-              {is404Error && (
-                <button 
-                  onClick={() => setIsSettingsOpen(true)}
-                  className="px-4 py-2 bg-blue-500/20 text-blue-300 rounded-lg text-sm font-medium hover:bg-blue-500/30 transition-colors"
+        {activeTab === 'display' && (
+          <div className="max-h-64 overflow-y-auto space-y-3">
+            {[
+              { key: 'temperature', label: '気温', icon: Thermometer },
+              { key: 'feelsLike', label: '体感温度', icon: Thermometer },
+              { key: 'tempMinMax', label: '最高/最低気温', icon: Thermometer },
+              { key: 'description', label: '天気説明', icon: Cloud },
+              { key: 'humidity', label: '湿度', icon: Droplets },
+              { key: 'pressure', label: '気圧', icon: Gauge },
+              { key: 'windSpeed', label: '風速', icon: Wind },
+              { key: 'windDirection', label: '風向', icon: Compass },
+              { key: 'windGust', label: '突風', icon: Wind },
+              { key: 'visibility', label: '視界', icon: Eye },
+              { key: 'cloudiness', label: '雲量', icon: Cloud },
+              { key: 'sunrise', label: '日の出', icon: Sunrise },
+              { key: 'sunset', label: '日の入', icon: Sunset },
+              { key: 'uvIndex', label: 'UV指数', icon: Zap },
+              { key: 'precipitationProbability', label: '降水確率', icon: CloudDrizzle },
+              { key: 'location', label: '地点名', icon: Search },
+            ].map(({ key, label, icon: Icon }) => (
+              <div key={key} className="flex items-center justify-between p-3 bg-gradient-to-r from-white/5 to-white/10 rounded-xl border border-white/10 backdrop-blur-xl">
+                <div className="flex items-center gap-3">
+                  <Icon size={16} className="text-white/60" />
+                  <span className="text-sm text-white/80 font-medium">{label}</span>
+                </div>
+                <button
+                  onClick={() => handleDisplayOptionChange(key, !currentDisplayOptions[key])}
+                  className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
+                    currentDisplayOptions[key]
+                      ? 'bg-gradient-to-r from-blue-400 to-purple-400 shadow-lg'
+                      : 'bg-white/20'
+                  }`}
                 >
-                  地点を変更
+                  <div
+                    className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all duration-300 shadow-lg ${
+                      currentDisplayOptions[key]
+                        ? 'translate-x-6'
+                        : 'translate-x-0.5'
+                    }`}
+                  />
                 </button>
-              )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <WidgetTemplate
+        icon={Cloud}
+        title="天気"
+        onSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+        settingsPanel={renderSettingsPanel()}
+      >
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
+          <p className="text-lg text-white/80 mt-4">読み込み中...</p>
+        </div>
+      </WidgetTemplate>
+    )
+  }
+
+  if (error) {
+    const is404Error = (error as any).statusCode === 404
+    
+    return (
+      <WidgetTemplate
+        icon={Cloud}
+        title="天気"
+        onSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+        settingsPanel={renderSettingsPanel()}
+      >
+        <div className="text-center">
+          <Cloud className="mx-auto mb-4 text-white/60" size={48} />
+          <p className="text-xl text-white/80 font-medium mb-2">
+            {is404Error ? '地点が見つかりません' : '天気情報を取得できません'}
+          </p>
+          <p className="text-base text-white/60 mt-2">
+            {is404Error ? `"${currentLocation}"は存在しません` : (error as any)?.message || 'エラーが発生しました'}
+          </p>
+          <div className="mt-4 flex gap-3 justify-center">
+            {is404Error && (
               <button 
-                onClick={() => refetch()}
-                className="px-4 py-2 bg-white/10 rounded-lg text-sm font-medium hover:bg-white/20 transition-colors"
+                onClick={() => setIsSettingsOpen(true)}
+                className="px-4 py-2 bg-blue-500/20 text-blue-300 rounded-lg text-sm font-medium hover:bg-blue-500/30 transition-colors"
               >
-                再試行
+                地点を変更
               </button>
-            </div>
+            )}
+            <button 
+              onClick={() => refetch()}
+              className="px-4 py-2 bg-white/10 rounded-lg text-sm font-medium hover:bg-white/20 transition-colors"
+            >
+              再試行
+            </button>
           </div>
         </div>
-      </div>
+      </WidgetTemplate>
     )
   }
 
@@ -203,111 +445,209 @@ export default function WeatherWidget({
   const IconComponent = weatherIcons[weather.current.icon as keyof typeof weatherIcons] || weatherIcons.default
 
   return (
-    <div className="h-full flex flex-col justify-between p-4 text-white relative">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <IconComponent size={32} className="text-white/80" />
-          <span className="text-2xl font-semibold text-white/80">天気</span>
-        </div>
-        <button
-          onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-          className="p-2 rounded hover:bg-white/10 transition-colors"
-        >
-          <Settings size={20} className="text-white/60" />
-        </button>
-      </div>
+    <WidgetTemplate
+      icon={IconComponent}
+      title="天気"
+      onSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+      settingsPanel={renderSettingsPanel()}
+      footer={`最終更新: ${new Date(weather.lastUpdated).toLocaleTimeString('ja-JP', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      })}`}
+    >
+      <div className="space-y-4">
+        {/* Dynamic Layout - Primary Display */}
+        {currentLayoutConfig.primary && currentLayoutConfig.primary !== 'none' && (
+          <div className="text-center">
+            {(() => {
+              switch (currentLayoutConfig.primary) {
+                case 'temperature':
+                  return <div className="text-6xl font-bold leading-tight">{weather.current.temperature}°C</div>
+                case 'feelsLike':
+                  return <div className="text-6xl font-bold leading-tight">体感 {weather.current.feelsLike}°C</div>
+                case 'tempMinMax':
+                  return <div className="text-6xl font-bold leading-tight">{weather.current.tempMin}°C / {weather.current.tempMax}°C</div>
+                case 'description':
+                  return <div className="text-6xl font-bold leading-tight">{weather.current.description}</div>
+                case 'location':
+                  return <div className="text-6xl font-bold leading-tight">{weather.location}</div>
+                case 'humidity':
+                  return <div className="text-6xl font-bold leading-tight">{weather.current.humidity}%</div>
+                case 'windSpeed':
+                  return <div className="text-6xl font-bold leading-tight">{weather.current.windSpeed}m/s</div>
+                case 'precipitationProbability':
+                  return <div className="text-6xl font-bold leading-tight">{weather.current.precipitationProbability}%</div>
+                default:
+                  return null
+              }
+            })()}
+          </div>
+        )}
 
-      {/* Settings panel */}
-      {isSettingsOpen && (
-        <div className="absolute top-0 left-0 right-0 bottom-0 bg-black/90 backdrop-blur-sm rounded-lg p-3 z-10">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-white">地点を選択</h3>
-            <button
-              onClick={() => setIsSettingsOpen(false)}
-              className="text-white/60 hover:text-white"
-            >
-              ×
-            </button>
+        {/* Dynamic Layout - Secondary Display */}
+        {currentLayoutConfig.secondary && currentLayoutConfig.secondary !== 'none' && (
+          <div className="text-center">
+            {(() => {
+              switch (currentLayoutConfig.secondary) {
+                case 'temperature':
+                  return <div className="text-xl text-white/80 font-medium">{weather.current.temperature}°C</div>
+                case 'feelsLike':
+                  return <div className="text-xl text-white/80 font-medium">体感 {weather.current.feelsLike}°C</div>
+                case 'tempMinMax':
+                  return <div className="text-xl text-white/80 font-medium">{weather.current.tempMin}°C / {weather.current.tempMax}°C</div>
+                case 'description':
+                  return <div className="text-xl text-white/80 font-medium">{weather.current.description}</div>
+                case 'location':
+                  return <div className="text-xl text-white/80 font-medium">{weather.location}</div>
+                case 'humidity':
+                  return <div className="text-xl text-white/80 font-medium">湿度 {weather.current.humidity}%</div>
+                case 'windSpeed':
+                  return <div className="text-xl text-white/80 font-medium">風速 {weather.current.windSpeed}m/s</div>
+                case 'precipitationProbability':
+                  return <div className="text-xl text-white/80 font-medium">降水確率 {weather.current.precipitationProbability}%</div>
+                default:
+                  return null
+              }
+            })()}
           </div>
-          
-          <div className="mb-3">
-            <p className="text-xs text-white/60 mb-2">
-              現在の地点: {currentLocation}
-            </p>
-            <div className="flex items-center gap-2 bg-white/10 rounded px-2 py-1">
-              <Search size={14} className="text-white/60" />
-              <input
-                type="text"
-                placeholder="都市名を入力..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent text-white text-sm flex-1 outline-none placeholder-white/60"
-                autoFocus
-              />
-            </div>
-          </div>
+        )}
 
-          <div className="max-h-32 overflow-y-auto">
-            {isSearching && searchQuery.length >= 2 && (
-              <div className="text-center py-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white/60 mx-auto"></div>
-              </div>
-            )}
-            
-            {cities && cities.length > 0 && (
-              <div className="space-y-1">
-                {cities.map((city, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleLocationSelect(city.name)}
-                    className="w-full text-left px-2 py-1 text-sm text-white/80 hover:bg-white/10 rounded transition-colors"
-                  >
-                    {city.displayName}
-                  </button>
-                ))}
-              </div>
-            )}
-            
-            {searchQuery.length >= 2 && cities && cities.length === 0 && !isSearching && (
-              <div className="text-center py-2 text-white/60 text-sm">
-                該当する都市が見つかりません
-              </div>
-            )}
+        {/* Dynamic Layout - Tertiary Display */}
+        {currentLayoutConfig.tertiary && currentLayoutConfig.tertiary !== 'none' && (
+          <div className="text-center">
+            {(() => {
+              switch (currentLayoutConfig.tertiary) {
+                case 'temperature':
+                  return <div className="text-lg text-white/60 font-medium">{weather.current.temperature}°C</div>
+                case 'feelsLike':
+                  return <div className="text-lg text-white/60 font-medium">体感 {weather.current.feelsLike}°C</div>
+                case 'tempMinMax':
+                  return <div className="text-lg text-white/60 font-medium">{weather.current.tempMin}°C / {weather.current.tempMax}°C</div>
+                case 'description':
+                  return <div className="text-lg text-white/60 font-medium">{weather.current.description}</div>
+                case 'location':
+                  return <div className="text-lg text-white/60 font-medium">{weather.location}</div>
+                case 'humidity':
+                  return <div className="text-lg text-white/60 font-medium">湿度 {weather.current.humidity}%</div>
+                case 'windSpeed':
+                  return <div className="text-lg text-white/60 font-medium">風速 {weather.current.windSpeed}m/s</div>
+                case 'precipitationProbability':
+                  return <div className="text-lg text-white/60 font-medium">降水確率 {weather.current.precipitationProbability}%</div>
+                default:
+                  return null
+              }
+            })()}
           </div>
-        </div>
-      )}
-      
-      <div className="flex-1 flex flex-col justify-center">
-        <div className="text-center mb-6">
-          <div className="text-6xl font-bold mb-3 leading-tight">
-            {weather.current.temperature}°C
+        )}
+
+        {/* Dynamic Layout - Details Grid */}
+        {currentLayoutConfig.details && currentLayoutConfig.details.length > 0 && (
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            {currentLayoutConfig.details.map((itemKey: string) => {
+              const item = weatherItems.find(item => item.key === itemKey)
+              if (!item) return null
+              
+              const IconComponent = item.icon
+              
+              switch (itemKey) {
+                case 'feelsLike':
+                  return (
+                    <div key={itemKey} className="flex items-center gap-2">
+                      <IconComponent size={14} className="text-white/60" />
+                      <span className="text-white/80">体感 {weather.current.feelsLike}°C</span>
+                    </div>
+                  )
+                case 'tempMinMax':
+                  return (
+                    <div key={itemKey} className="flex items-center gap-2">
+                      <IconComponent size={14} className="text-white/60" />
+                      <span className="text-white/80">{weather.current.tempMin}°C / {weather.current.tempMax}°C</span>
+                    </div>
+                  )
+                case 'humidity':
+                  return (
+                    <div key={itemKey} className="flex items-center gap-2">
+                      <IconComponent size={14} className="text-white/60" />
+                      <span className="text-white/80">湿度 {weather.current.humidity}%</span>
+                    </div>
+                  )
+                case 'pressure':
+                  return (
+                    <div key={itemKey} className="flex items-center gap-2">
+                      <IconComponent size={14} className="text-white/60" />
+                      <span className="text-white/80">気圧 {weather.current.pressure}hPa</span>
+                    </div>
+                  )
+                case 'windSpeed':
+                  return (
+                    <div key={itemKey} className="flex items-center gap-2">
+                      <IconComponent size={14} className="text-white/60" />
+                      <span className="text-white/80">風速 {weather.current.windSpeed}m/s</span>
+                    </div>
+                  )
+                case 'windDirection':
+                  return (
+                    <div key={itemKey} className="flex items-center gap-2">
+                      <IconComponent size={14} className="text-white/60" />
+                      <span className="text-white/80">風向 {weather.current.windDirection}°</span>
+                    </div>
+                  )
+                case 'windGust':
+                  return weather.current.windGust > 0 ? (
+                    <div key={itemKey} className="flex items-center gap-2">
+                      <IconComponent size={14} className="text-white/60" />
+                      <span className="text-white/80">突風 {weather.current.windGust}m/s</span>
+                    </div>
+                  ) : null
+                case 'visibility':
+                  return weather.current.visibility > 0 ? (
+                    <div key={itemKey} className="flex items-center gap-2">
+                      <IconComponent size={14} className="text-white/60" />
+                      <span className="text-white/80">視界 {weather.current.visibility}km</span>
+                    </div>
+                  ) : null
+                case 'cloudiness':
+                  return (
+                    <div key={itemKey} className="flex items-center gap-2">
+                      <IconComponent size={14} className="text-white/60" />
+                      <span className="text-white/80">雲量 {weather.current.cloudiness}%</span>
+                    </div>
+                  )
+                case 'sunrise':
+                  return weather.current.sunrise ? (
+                    <div key={itemKey} className="flex items-center gap-2">
+                      <IconComponent size={14} className="text-white/60" />
+                      <span className="text-white/80">日出 {weather.current.sunrise}</span>
+                    </div>
+                  ) : null
+                case 'sunset':
+                  return weather.current.sunset ? (
+                    <div key={itemKey} className="flex items-center gap-2">
+                      <IconComponent size={14} className="text-white/60" />
+                      <span className="text-white/80">日入 {weather.current.sunset}</span>
+                    </div>
+                  ) : null
+                case 'uvIndex':
+                  return weather.current.uvIndex > 0 ? (
+                    <div key={itemKey} className="flex items-center gap-2">
+                      <IconComponent size={14} className="text-white/60" />
+                      <span className="text-white/80">UV指数 {weather.current.uvIndex}</span>
+                    </div>
+                  ) : null
+                case 'precipitationProbability':
+                  return (
+                    <div key={itemKey} className="flex items-center gap-2">
+                      <IconComponent size={14} className="text-white/60" />
+                      <span className="text-white/80">降水確率 {weather.current.precipitationProbability}%</span>
+                    </div>
+                  )
+                default:
+                  return null
+              }
+            })}
           </div>
-          <div className="text-xl text-white/80 mb-3 font-medium">
-            {weather.current.description}
-          </div>
-          <div className="text-lg text-white/60 font-medium">
-            {weather.location}
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-3 text-base">
-          <div className="flex items-center gap-2">
-            <Droplets size={18} className="text-white/60" />
-            <span className="text-white/80 font-medium">湿度 {weather.current.humidity}%</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Wind size={18} className="text-white/60" />
-            <span className="text-white/80 font-medium">風速 {weather.current.windSpeed}m/s</span>
-          </div>
-        </div>
+        )}
       </div>
-      
-      <div className="text-sm text-white/60 text-center font-medium">
-        最終更新: {new Date(weather.lastUpdated).toLocaleTimeString('ja-JP', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        })}
-      </div>
-    </div>
+    </WidgetTemplate>
   )
 }

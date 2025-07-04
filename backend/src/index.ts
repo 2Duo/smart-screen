@@ -33,8 +33,9 @@ app.get('/health', (req, res) => {
 
 // Weather API routes
 app.get('/api/weather', async (req, res) => {
+  const { location = process.env.DEFAULT_CITY || 'Tokyo' } = req.query;
+  
   try {
-    const { location = process.env.DEFAULT_CITY || 'Tokyo' } = req.query;
     const apiKey = process.env.OPENWEATHER_API_KEY;
     
     if (!apiKey) {
@@ -47,27 +48,59 @@ app.get('/api/weather', async (req, res) => {
 
     const baseUrl = process.env.OPENWEATHER_BASE_URL || 'https://api.openweathermap.org/data/2.5';
     const weatherUrl = `${baseUrl}/weather?q=${encodeURIComponent(location as string)}&appid=${apiKey}&units=metric&lang=ja`;
+    const forecastUrl = `${baseUrl}/forecast?q=${encodeURIComponent(location as string)}&appid=${apiKey}&units=metric&lang=ja`;
     
-    const response = await axios.get(weatherUrl);
-    const data: any = response.data;
-
-    if (response.status !== 200) {
-      return res.status(response.status).json({
-        success: false,
-        error: data.message || 'Weather data not found',
-        timestamp: new Date().toISOString()
-      });
+    // Get both current weather and forecast data
+    const [weatherResponse, forecastResponse] = await Promise.all([
+      axios.get(weatherUrl),
+      axios.get(forecastUrl)
+    ]);
+    
+    const data: any = weatherResponse.data;
+    const forecastData: any = forecastResponse.data;
+    
+    // Calculate daily precipitation probability from today's forecast entries
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    
+    // Filter forecast entries for today only
+    const todayForecasts = forecastData.list?.filter((entry: any) => {
+      const entryDate = new Date(entry.dt * 1000);
+      return entryDate >= todayStart && entryDate < todayEnd;
+    }) || [];
+    
+    // Calculate daily precipitation probability (maximum probability during the day)
+    let maxPrecipitationProbability = 0;
+    if (todayForecasts.length > 0) {
+      maxPrecipitationProbability = Math.max(...todayForecasts.map((entry: any) => entry.pop || 0));
+      maxPrecipitationProbability = Math.round(maxPrecipitationProbability * 100);
     }
+    
+    const precipitationProbability = maxPrecipitationProbability;
 
     const weatherData = {
       location: data.name,
       current: {
         temperature: Math.round(data.main.temp),
+        feelsLike: Math.round(data.main.feels_like),
+        tempMin: Math.round(data.main.temp_min),
+        tempMax: Math.round(data.main.temp_max),
         humidity: data.main.humidity,
+        pressure: data.main.pressure,
+        seaLevel: data.main.sea_level,
+        groundLevel: data.main.grnd_level,
         description: data.weather[0].description,
         icon: mapWeatherIcon(data.weather[0].icon),
-        windSpeed: data.wind.speed,
-        windDirection: data.wind.deg || 0,
+        windSpeed: data.wind?.speed || 0,
+        windDirection: data.wind?.deg || 0,
+        windGust: data.wind?.gust || 0,
+        visibility: data.visibility ? Math.round(data.visibility / 1000) : 0, // Convert to km
+        cloudiness: data.clouds?.all || 0,
+        sunrise: data.sys?.sunrise ? new Date(data.sys.sunrise * 1000).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '',
+        sunset: data.sys?.sunset ? new Date(data.sys.sunset * 1000).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '',
+        uvIndex: data.uvi || 0,
+        precipitationProbability: precipitationProbability,
       },
       forecast: [],
       lastUpdated: new Date().toISOString(),
@@ -80,6 +113,26 @@ app.get('/api/weather', async (req, res) => {
     });
   } catch (error) {
     console.error('Weather API error:', error);
+    
+    if (axios.isAxiosError(error) && error.response) {
+      const statusCode = error.response.status;
+      const errorMessage = error.response.data?.message || error.message;
+      
+      if (statusCode === 404) {
+        return res.status(404).json({
+          success: false,
+          error: `City not found: ${location}`,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      return res.status(statusCode).json({
+        success: false,
+        error: errorMessage,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     return res.status(500).json({
       success: false,
       error: 'Failed to fetch weather data',
@@ -114,14 +167,6 @@ app.get('/api/weather/cities', async (req, res) => {
     const response = await axios.get(geoUrl);
     const data: any = response.data;
 
-    if (response.status !== 200) {
-      return res.status(response.status).json({
-        success: false,
-        error: 'Failed to search cities',
-        timestamp: new Date().toISOString()
-      });
-    }
-
     const cities = data.map((city: any) => ({
       name: city.name,
       country: city.country,
@@ -140,6 +185,18 @@ app.get('/api/weather/cities', async (req, res) => {
     });
   } catch (error) {
     console.error('City search error:', error);
+    
+    if (axios.isAxiosError(error) && error.response) {
+      const statusCode = error.response.status;
+      const errorMessage = error.response.data?.message || error.message;
+      
+      return res.status(statusCode).json({
+        success: false,
+        error: errorMessage,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     return res.status(500).json({
       success: false,
       error: 'Failed to search cities',
