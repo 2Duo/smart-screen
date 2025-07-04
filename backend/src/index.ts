@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import axios from 'axios';
 
 dotenv.config();
 
@@ -47,10 +48,10 @@ app.get('/api/weather', async (req, res) => {
     const baseUrl = process.env.OPENWEATHER_BASE_URL || 'https://api.openweathermap.org/data/2.5';
     const weatherUrl = `${baseUrl}/weather?q=${encodeURIComponent(location as string)}&appid=${apiKey}&units=metric&lang=ja`;
     
-    const response = await fetch(weatherUrl);
-    const data: any = await response.json();
-    
-    if (!response.ok) {
+    const response = await axios.get(weatherUrl);
+    const data: any = response.data;
+
+    if (response.status !== 200) {
       return res.status(response.status).json({
         success: false,
         error: data.message || 'Weather data not found',
@@ -110,10 +111,10 @@ app.get('/api/weather/cities', async (req, res) => {
     }
 
     const geoUrl = `http://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=5&appid=${apiKey}`;
-    const response = await fetch(geoUrl);
-    const data: any = await response.json();
+    const response = await axios.get(geoUrl);
+    const data: any = response.data;
 
-    if (!response.ok) {
+    if (response.status !== 200) {
       return res.status(response.status).json({
         success: false,
         error: 'Failed to search cities',
