@@ -29,19 +29,19 @@ export default function ClockWidget({
     : (showSeconds ? 'h:mm:ss a' : 'h:mm a')
 
   return (
-    <div className="h-full flex flex-col items-center justify-center text-white">
-      <div className="flex items-center gap-2 mb-2">
-        <Clock size={24} className="text-white/80" />
-        <span className="text-lg font-medium text-white/80">時刻</span>
+    <div className="h-full flex flex-col items-center justify-center text-white p-4">
+      <div className="flex items-center gap-3 mb-4">
+        <Clock size={32} className="text-white/80" />
+        <span className="text-2xl font-semibold text-white/80">時刻</span>
       </div>
       
       <div className="text-center">
-        <div className="text-4xl font-bold font-mono mb-2">
+        <div className="text-6xl font-bold font-mono mb-4 leading-tight">
           {format(time, timeFormat)}
         </div>
         
         {showDate && (
-          <div className="text-lg text-white/80">
+          <div className="text-2xl text-white/80 font-medium">
             {format(time, 'yyyy年M月d日 (E)', { locale: ja })}
           </div>
         )}
