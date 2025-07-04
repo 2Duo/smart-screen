@@ -26,10 +26,35 @@ const defaultWidgetConfigs: Record<WidgetType, WidgetConfig> = {
     showSeconds: true,
     format24Hour: true,
     showDate: true,
+    fontSize: 96, // Font size in pixels, range 32-128
   },
   weather: {
     location: 'Tokyo',
     showForecast: false,
+    layoutConfig: {
+      primary: 'temperature',      // メイン表示 (最大サイズ)
+      secondary: 'description',    // セカンダリ表示 (中サイズ)
+      tertiary: 'location',        // サード表示 (小サイズ)
+      details: ['humidity', 'windSpeed', 'precipitationProbability'], // 詳細グリッド
+    },
+    displayOptions: {
+      temperature: true,
+      feelsLike: false,
+      tempMinMax: false,
+      humidity: true,
+      pressure: false,
+      windSpeed: true,
+      windDirection: false,
+      windGust: false,
+      visibility: false,
+      cloudiness: false,
+      sunrise: false,
+      sunset: false,
+      uvIndex: false,
+      precipitationProbability: true,
+      description: true,
+      location: true,
+    },
   },
   calendar: {
     showWeekNumbers: false,

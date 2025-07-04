@@ -1,5 +1,5 @@
 import React from 'react'
-import { Clock, Cloud, Calendar, Newspaper, Image, Settings } from 'lucide-react'
+import { Clock, Cloud, Calendar, Newspaper, Image, Settings, X, Sparkles } from 'lucide-react'
 import { useWidgetStore, widgetMetadata } from '../stores/widgetStore'
 import { useLayoutStore } from '../stores/layoutStore'
 import type { WidgetType } from '../../../shared/types'
@@ -28,37 +28,63 @@ export const WidgetSelectionPanel: React.FC<WidgetSelectionPanelProps> = ({ onCl
   }
   
   return (
-    <div className="absolute top-12 right-4 bg-black/90 backdrop-blur-sm rounded-lg p-4 z-50 min-w-64">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-white font-medium">ウィジェットを追加</h3>
-        <button
-          onClick={onClose}
-          className="text-white/60 hover:text-white transition-colors"
-        >
-          ×
-        </button>
-      </div>
-      
-      <div className="space-y-2">
-        {Object.entries(widgetMetadata).map(([type, metadata]) => {
-          const IconComponent = iconMap[metadata.icon as keyof typeof iconMap]
-          
-          return (
+    <div className="absolute top-24 right-8 z-50 w-96">
+      {/* Liquid Glass morphism container */}
+      <div className="backdrop-blur-3xl bg-gradient-to-br from-white/8 via-white/5 to-white/8 border border-white/20 rounded-3xl shadow-2xl shadow-black/20 overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-400/15 via-purple-400/10 to-indigo-400/15 border-b border-white/15 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-2xl bg-gradient-to-br from-blue-400/20 to-purple-400/20 backdrop-blur-xl">
+                <Sparkles size={22} className="text-blue-200" />
+              </div>
+              <h3 className="text-white font-bold text-xl tracking-wide">ウィジェットを追加</h3>
+            </div>
             <button
-              key={type}
-              onClick={() => handleAddWidget(type as WidgetType)}
-              className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left"
+              onClick={onClose}
+              className="group p-3 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 transition-all duration-300"
             >
-              <div className="flex-shrink-0">
-                <IconComponent size={20} className="text-white/80" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-white font-medium text-sm">{metadata.name}</div>
-                <div className="text-white/60 text-xs mt-1">{metadata.description}</div>
-              </div>
+              <X size={18} className="text-white/70 group-hover:text-white transition-colors group-hover:rotate-90" />
             </button>
-          )
-        })}
+          </div>
+        </div>
+        
+        {/* Widget list */}
+        <div className="p-5 space-y-3 max-h-96 overflow-y-auto">
+          {Object.entries(widgetMetadata).map(([type, metadata]) => {
+            const IconComponent = iconMap[metadata.icon as keyof typeof iconMap]
+            
+            return (
+              <button
+                key={type}
+                onClick={() => handleAddWidget(type as WidgetType)}
+                className="group w-full flex items-center gap-5 p-5 rounded-2xl bg-gradient-to-r from-white/5 to-white/8 hover:from-white/10 hover:to-white/15 border border-white/10 hover:border-white/25 transition-all duration-300 text-left transform hover:scale-[1.02] hover:shadow-lg hover:shadow-black/10"
+              >
+                <div className="flex-shrink-0 p-3 rounded-2xl bg-gradient-to-br from-white/15 to-white/10 group-hover:from-white/25 group-hover:to-white/20 transition-all duration-300 backdrop-blur-xl">
+                  <IconComponent size={28} className="text-white/80 group-hover:text-white transition-colors" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-white font-bold text-lg group-hover:text-white transition-colors mb-1">
+                    {metadata.name}
+                  </div>
+                  <div className="text-white/60 text-sm group-hover:text-white/80 transition-colors leading-relaxed">
+                    {metadata.description}
+                  </div>
+                </div>
+                <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-400 to-purple-400 shadow-lg"></div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+        
+        {/* Footer */}
+        <div className="bg-gradient-to-r from-white/5 via-white/8 to-white/5 border-t border-white/15 p-4">
+          <div className="text-white/60 text-sm text-center font-medium">
+            ウィジェットをクリックして追加
+          </div>
+        </div>
       </div>
     </div>
   )
