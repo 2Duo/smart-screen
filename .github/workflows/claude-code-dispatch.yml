@@ -1,0 +1,121 @@
+name: Claude Code Task Dispatcher
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_description:
+        description: 'Describe the development task'
+        required: true
+        type: string
+      target_component:
+        description: 'Target component to work on'
+        required: true
+        type: choice
+        options:
+          - 'frontend'
+          - 'backend'
+          - 'shared'
+          - 'full-stack'
+        default: 'full-stack'
+      priority:
+        description: 'Task priority'
+        required: true
+        type: choice
+        options:
+          - 'high'
+          - 'medium'
+          - 'low'
+        default: 'medium'
+      create_pr:
+        description: 'Create Pull Request automatically'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  execute-task:
+    runs-on: ubuntu-latest
+    name: Execute Claude Code Task
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          if [ "${{ github.event.inputs.target_component }}" = "backend" ] || [ "${{ github.event.inputs.target_component }}" = "full-stack" ]; then
+            cd backend && npm ci
+          fi
+          if [ "${{ github.event.inputs.target_component }}" = "frontend" ] || [ "${{ github.event.inputs.target_component }}" = "full-stack" ]; then
+            cd frontend && npm ci
+          fi
+
+      - name: Execute Claude Code Task
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          task: |
+            ${{ github.event.inputs.task_description }}
+            
+            対象コンポーネント: ${{ github.event.inputs.target_component }}
+            優先度: ${{ github.event.inputs.priority }}
+            
+            以下のプロジェクト構造を理解して作業してください：
+            - frontend/: React + TypeScript + Vite
+            - backend/: Node.js + Express + Socket.io
+            - shared/: 共通の型定義
+            
+            コード品質を保つために以下を遵守してください：
+            1. TypeScript型定義の使用
+            2. ESLintルールの遵守
+            3. 既存のコード規約に従う
+            4. 適切なエラーハンドリング
+            5. セキュリティベストプラクティス
+          target-files: |
+            ${{ github.event.inputs.target_component == 'frontend' && 'frontend/' || '' }}
+            ${{ github.event.inputs.target_component == 'backend' && 'backend/' || '' }}
+            ${{ github.event.inputs.target_component == 'shared' && 'shared/' || '' }}
+            ${{ github.event.inputs.target_component == 'full-stack' && 'frontend/ backend/ shared/' || '' }}
+
+      - name: Run tests
+        run: |
+          if [ "${{ github.event.inputs.target_component }}" = "backend" ] || [ "${{ github.event.inputs.target_component }}" = "full-stack" ]; then
+            cd backend && npm run typecheck && npm run lint
+          fi
+          if [ "${{ github.event.inputs.target_component }}" = "frontend" ] || [ "${{ github.event.inputs.target_component }}" = "full-stack" ]; then
+            cd frontend && npm run typecheck && npm run lint
+          fi
+
+      - name: Create Pull Request
+        if: ${{ github.event.inputs.create_pr }}
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "feat: ${{ github.event.inputs.task_description }}"
+          title: "${{ github.event.inputs.task_description }}"
+          body: |
+            ## Task Description
+            ${{ github.event.inputs.task_description }}
+            
+            ## Target Component
+            ${{ github.event.inputs.target_component }}
+            
+            ## Priority
+            ${{ github.event.inputs.priority }}
+            
+            ## Changes
+            - [x] Implementation completed
+            - [x] Type checking passed
+            - [x] Linting passed
+            
+            🤖 Generated with Claude Code via GitHub Actions
+          branch: feature/claude-code-${{ github.run_number }}
+          delete-branch: true

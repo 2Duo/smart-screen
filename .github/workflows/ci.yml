@@ -1,0 +1,86 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-frontend:
+    runs-on: ubuntu-latest
+    name: Frontend Tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Run type check
+        run: cd frontend && npm run typecheck
+
+      - name: Run lint
+        run: cd frontend && npm run lint
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+
+  test-backend:
+    runs-on: ubuntu-latest
+    name: Backend Tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: cd backend && npm ci
+
+      - name: Run type check
+        run: cd backend && npm run typecheck
+
+      - name: Run lint
+        run: cd backend && npm run lint
+
+      - name: Build backend
+        run: cd backend && npm run build
+
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security Scan
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run npm audit (Backend)
+        run: cd backend && npm audit --audit-level=moderate
+
+      - name: Run npm audit (Frontend)
+        run: cd frontend && npm audit --audit-level=moderate
+
+  auto-merge:
+    needs: [test-frontend, test-backend, security-scan]
+    runs-on: ubuntu-latest
+    name: Auto Merge PRs
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.body, '🤖 Generated with Claude Code')
+    steps:
+      - name: Auto merge Claude Code PRs
+        uses: pascalgn/merge-action@v0.15.6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          merge_method: squash
+          merge_commit_message: ${{ github.event.pull_request.title }}
