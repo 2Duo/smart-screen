@@ -70,6 +70,16 @@ export interface ClientToServerEvents {
   'weather-request': (location?: string) => void
 }
 
+// City search types
+export interface CitySearchResult {
+  name: string
+  country: string
+  state?: string
+  lat: number
+  lon: number
+  displayName: string
+}
+
 // API response types
 export interface APIResponse<T> {
   success: boolean
