@@ -53,9 +53,6 @@ create_custom_task() {
         return 1
     fi
     
-    echo -n "タスクの説明: "
-    read -r task_description
-    
     echo ""
     echo "📝 Claude Code に送信するプロンプトを入力してください:"
     echo "（複数行入力可能。完了したら空行でEnterを押してください）"
@@ -81,10 +78,7 @@ $line"
     fi
     
     echo ""
-    echo "📋 作成するタスク情報:"
-    echo "ID: $task_id"
-    echo "説明: $task_description"
-    echo "プロンプト:"
+    echo "📋 プロンプト確認:"
     echo "----------------------------------------"
     echo "$custom_prompt"
     echo "----------------------------------------"
@@ -93,7 +87,7 @@ $line"
     read -r confirm
     
     if [[ "$confirm" =~ ^[Yy]$ ]]; then
-        execute_task "$task_id" "$task_description" "$custom_prompt"
+        execute_task "$task_id" "$custom_prompt"
     else
         echo "タスク作成をキャンセルしました。"
     fi
@@ -102,11 +96,10 @@ $line"
 # タスクを実行
 execute_task() {
     local task_id="$1"
-    local task_description="$2"
-    local task_prompt="$3"
+    local task_prompt="$2"
     
     echo ""
-    echo "🔧 タスク実行: $task_id - $task_description"
+    echo "🔧 タスク実行: $task_id"
     
     # ブランチ名を生成
     BRANCH_NAME="feature/${task_id}-$(date +%Y%m%d-%H%M%S)"
@@ -145,32 +138,45 @@ $task_prompt
     # プロンプトをエスケープ
     escaped_prompt=$(printf '%s\n' "$full_prompt" | sed 's/"/\\"/g' | sed 's/$/\\n/' | tr -d '\n')
     
+    # プロンプトファイルを作成
+    PROMPT_FILE=".claude_prompt_${task_id}.txt"
+    echo "$full_prompt" > "$PROMPT_FILE"
+    
+    # 自動削除スクリプトを作成
+    CLEANUP_SCRIPT=".cleanup_${task_id}.sh"
+    cat > "$CLEANUP_SCRIPT" << EOF
+#!/bin/bash
+# 5分後にプロンプトファイルとこのスクリプト自体を削除
+sleep 300
+rm -f "$PROMPT_FILE" "$CLEANUP_SCRIPT"
+EOF
+    chmod +x "$CLEANUP_SCRIPT"
+    nohup "./$CLEANUP_SCRIPT" > /dev/null 2>&1 &
+    
     # 新しいターミナルでタスクを開始
     case "$OSTYPE" in
         "darwin"*)
             # macOS
             osascript -e "
             tell application \"Terminal\"
-                do script \"cd '$(pwd)' && git checkout $BRANCH_NAME && echo '🚀 タスク開始: $task_description' && echo 'ブランチ: $BRANCH_NAME' && echo '' && echo 'プロンプト:' && echo '$escaped_prompt' && echo '' && claude code\"
+                do script \"cd '$(pwd)' && git checkout $BRANCH_NAME && echo '🚀 タスク開始: $task_id' && echo 'ブランチ: $BRANCH_NAME' && echo '' && claude code --resume '$PROMPT_FILE'\"
             end tell"
             ;;
         "linux-gnu"*)
             # Linux
             if command -v gnome-terminal &> /dev/null; then
-                gnome-terminal --tab --title="Task: $task_id" -- bash -c "cd '$(pwd)' && git checkout $BRANCH_NAME && echo '🚀 タスク開始: $task_description' && echo 'ブランチ: $BRANCH_NAME' && echo '' && echo 'プロンプト:' && echo '$escaped_prompt' && echo '' && claude code && bash"
+                gnome-terminal --tab --title="Task: $task_id" -- bash -c "cd '$(pwd)' && git checkout $BRANCH_NAME && echo '🚀 タスク開始: $task_id' && echo 'ブランチ: $BRANCH_NAME' && echo '' && claude code --resume '$PROMPT_FILE' && bash"
             elif command -v konsole &> /dev/null; then
-                konsole --new-tab --title="Task: $task_id" -e bash -c "cd '$(pwd)' && git checkout $BRANCH_NAME && echo '🚀 タスク開始: $task_description' && echo 'ブランチ: $BRANCH_NAME' && echo '' && echo 'プロンプト:' && echo '$escaped_prompt' && echo '' && claude code && bash"
+                konsole --new-tab --title="Task: $task_id" -e bash -c "cd '$(pwd)' && git checkout $BRANCH_NAME && echo '🚀 タスク開始: $task_id' && echo 'ブランチ: $BRANCH_NAME' && echo '' && claude code --resume '$PROMPT_FILE' && bash"
             else
                 echo "サポートされているターミナルが見つかりません。手動で新しいターミナルを開いてください。"
-                echo "コマンド: cd '$(pwd)' && git checkout $BRANCH_NAME && claude code"
-                echo "プロンプト: $task_prompt"
+                echo "コマンド: cd '$(pwd)' && git checkout $BRANCH_NAME && claude code --resume '$PROMPT_FILE'"
             fi
             ;;
         *)
             echo "サポートされていないOS: $OSTYPE"
             echo "手動で新しいターミナルを開いてください。"
-            echo "コマンド: cd '$(pwd)' && git checkout $BRANCH_NAME && claude code"
-            echo "プロンプト: $task_prompt"
+            echo "コマンド: cd '$(pwd)' && git checkout $BRANCH_NAME && claude code --resume '$PROMPT_FILE'"
             ;;
     esac
     
@@ -203,8 +209,6 @@ interactive_mode() {
                 continue
             fi
             
-            echo -n "タスク説明: "
-            read -r custom_desc
             echo "プロンプト (複数行可、空行でEnter):"
             
             custom_prompt=""
@@ -221,7 +225,7 @@ $line"
             done
             
             if [[ -n "$custom_prompt" ]]; then
-                CUSTOM_TASKS+=("$custom_id|$custom_desc|$custom_prompt")
+                CUSTOM_TASKS+=("$custom_id|$custom_prompt")
                 echo "✅ タスク追加: $custom_id"
             else
                 echo "❌ プロンプトが空のため、タスクをスキップしました。"
@@ -242,8 +246,8 @@ $line"
     
     # カスタムタスクを実行
     for task_data in "${CUSTOM_TASKS[@]}"; do
-        IFS='|' read -r task_id task_desc task_prompt <<< "$task_data"
-        execute_task "$task_id" "$task_desc" "$task_prompt"
+        IFS='|' read -r task_id task_prompt <<< "$task_data"
+        execute_task "$task_id" "$task_prompt"
     done
 }
 
@@ -277,7 +281,7 @@ $line"
         done
         
         if [[ -n "$template_prompt" ]]; then
-            execute_task "$template_type" "${TEMPLATE_TASKS[$template_type]}" "$template_prompt"
+            execute_task "$template_type" "$template_prompt"
         else
             echo "❌ プロンプトが入力されていません。"
         fi

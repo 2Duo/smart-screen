@@ -112,3 +112,7 @@ out/
 
 # TypeScript
 *.tsbuildinfo
+
+# Claude Code prompt files (temporary)
+.claude_prompt_*.txt
+.cleanup_*.sh
