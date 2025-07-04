@@ -248,46 +248,100 @@ export default function WeatherWidget({
         {activeTab === 'layout' && (
           <div className="space-y-4">
             <div className="text-sm text-white/80 font-medium mb-4">レイアウトをカスタマイズ</div>
-            
-            {/* Primary Display Area */}
-            <div 
-              className="bg-gradient-to-r from-white/10 to-white/15 rounded-xl p-4 border border-white/20 cursor-pointer hover:from-white/15 hover:to-white/20 transition-all duration-300"
-              onClick={() => setSelectedLayoutArea('primary')}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-white">メイン表示</span>
-                <span className="text-xs text-white/60">最大サイズ</span>
-              </div>
-              <div className="text-2xl font-bold text-center py-4 bg-white/5 rounded-lg">
-                {weatherItems.find(item => item.key === currentLayoutConfig.primary)?.label || 'なし'}
-              </div>
-            </div>
 
-            {/* Secondary Display Area */}
-            <div 
-              className="bg-gradient-to-r from-white/10 to-white/15 rounded-xl p-3 border border-white/20 cursor-pointer hover:from-white/15 hover:to-white/20 transition-all duration-300"
-              onClick={() => setSelectedLayoutArea('secondary')}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-white">セカンダリ表示</span>
-                <span className="text-xs text-white/60">中サイズ</span>
+            {/* Layout Preview - Clickable Areas */}
+            <div className="space-y-3">
+              <div
+                className="p-3 rounded-xl border border-white/30 bg-white/5 cursor-pointer hover:bg-white/10 transition-all"
+                onClick={() => setSelectedLayoutArea('primary')}
+              >
+                <div className="text-xs text-white/60 mb-1">メイン表示</div>
+                <div className="text-center">
+                  {(() => {
+                    switch (currentLayoutConfig.primary) {
+                      case 'temperature':
+                        return <div className="text-4xl font-bold">{weather?.current.temperature}°C</div>
+                      case 'feelsLike':
+                        return <div className="text-4xl font-bold">体感 {weather?.current.feelsLike}°C</div>
+                      case 'tempMinMax':
+                        return <div className="text-4xl font-bold">{weather?.current.tempMin}°C / {weather?.current.tempMax}°C</div>
+                      case 'description':
+                        return <div className="text-4xl font-bold">{weather?.current.description}</div>
+                      case 'location':
+                        return <div className="text-4xl font-bold">{weather?.location}</div>
+                      case 'humidity':
+                        return <div className="text-4xl font-bold">{weather?.current.humidity}%</div>
+                      case 'windSpeed':
+                        return <div className="text-4xl font-bold">{weather?.current.windSpeed}m/s</div>
+                      case 'precipitationProbability':
+                        return <div className="text-4xl font-bold">{weather?.current.precipitationProbability}%</div>
+                      default:
+                        return <div className="text-white/40">なし</div>
+                    }
+                  })()}
+                </div>
               </div>
-              <div className="text-lg font-medium text-center py-2 bg-white/5 rounded-lg">
-                {weatherItems.find(item => item.key === currentLayoutConfig.secondary)?.label || 'なし'}
-              </div>
-            </div>
 
-            {/* Tertiary Display Area */}
-            <div 
-              className="bg-gradient-to-r from-white/10 to-white/15 rounded-xl p-3 border border-white/20 cursor-pointer hover:from-white/15 hover:to-white/20 transition-all duration-300"
-              onClick={() => setSelectedLayoutArea('tertiary')}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-white">サード表示</span>
-                <span className="text-xs text-white/60">小サイズ</span>
+              <div
+                className="p-3 rounded-xl border border-white/30 bg-white/5 cursor-pointer hover:bg-white/10 transition-all"
+                onClick={() => setSelectedLayoutArea('secondary')}
+              >
+                <div className="text-xs text-white/60 mb-1">セカンダリ表示</div>
+                <div className="text-center">
+                  {(() => {
+                    switch (currentLayoutConfig.secondary) {
+                      case 'temperature':
+                        return <div className="text-xl text-white/80 font-medium">{weather?.current.temperature}°C</div>
+                      case 'feelsLike':
+                        return <div className="text-xl text-white/80 font-medium">体感 {weather?.current.feelsLike}°C</div>
+                      case 'tempMinMax':
+                        return <div className="text-xl text-white/80 font-medium">{weather?.current.tempMin}°C / {weather?.current.tempMax}°C</div>
+                      case 'description':
+                        return <div className="text-xl text-white/80 font-medium">{weather?.current.description}</div>
+                      case 'location':
+                        return <div className="text-xl text-white/80 font-medium">{weather?.location}</div>
+                      case 'humidity':
+                        return <div className="text-xl text-white/80 font-medium">湿度 {weather?.current.humidity}%</div>
+                      case 'windSpeed':
+                        return <div className="text-xl text-white/80 font-medium">風速 {weather?.current.windSpeed}m/s</div>
+                      case 'precipitationProbability':
+                        return <div className="text-xl text-white/80 font-medium">降水確率 {weather?.current.precipitationProbability}%</div>
+                      default:
+                        return <div className="text-white/40">なし</div>
+                    }
+                  })()}
+                </div>
               </div>
-              <div className="text-base font-medium text-center py-2 bg-white/5 rounded-lg">
-                {weatherItems.find(item => item.key === currentLayoutConfig.tertiary)?.label || 'なし'}
+
+              <div
+                className="p-3 rounded-xl border border-white/30 bg-white/5 cursor-pointer hover:bg-white/10 transition-all"
+                onClick={() => setSelectedLayoutArea('tertiary')}
+              >
+                <div className="text-xs text-white/60 mb-1">サード表示</div>
+                <div className="text-center">
+                  {(() => {
+                    switch (currentLayoutConfig.tertiary) {
+                      case 'temperature':
+                        return <div className="text-lg text-white/60 font-medium">{weather?.current.temperature}°C</div>
+                      case 'feelsLike':
+                        return <div className="text-lg text-white/60 font-medium">体感 {weather?.current.feelsLike}°C</div>
+                      case 'tempMinMax':
+                        return <div className="text-lg text-white/60 font-medium">{weather?.current.tempMin}°C / {weather?.current.tempMax}°C</div>
+                      case 'description':
+                        return <div className="text-lg text-white/60 font-medium">{weather?.current.description}</div>
+                      case 'location':
+                        return <div className="text-lg text-white/60 font-medium">{weather?.location}</div>
+                      case 'humidity':
+                        return <div className="text-lg text-white/60 font-medium">湿度 {weather?.current.humidity}%</div>
+                      case 'windSpeed':
+                        return <div className="text-lg text-white/60 font-medium">風速 {weather?.current.windSpeed}m/s</div>
+                      case 'precipitationProbability':
+                        return <div className="text-lg text-white/60 font-medium">降水確率 {weather?.current.precipitationProbability}%</div>
+                      default:
+                        return <div className="text-white/40">なし</div>
+                    }
+                  })()}
+                </div>
               </div>
             </div>
 
