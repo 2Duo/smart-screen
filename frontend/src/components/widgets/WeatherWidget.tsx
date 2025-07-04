@@ -249,32 +249,31 @@ export default function WeatherWidget({
           <div className="space-y-4">
             <div className="text-sm text-white/80 font-medium mb-4">レイアウトをカスタマイズ</div>
 
-            {/* Layout Preview - Clickable Areas */}
-            <div className="space-y-3">
+            {/* Layout Preview styled like the widget */}
+            <div className="space-y-4">
               <div
-                className="p-3 rounded-xl border border-white/30 bg-white/5 cursor-pointer hover:bg-white/10 transition-all"
+                className="p-2 rounded-xl border border-white/30 cursor-pointer hover:bg-white/10"
                 onClick={() => setSelectedLayoutArea('primary')}
               >
-                <div className="text-xs text-white/60 mb-1">メイン表示</div>
                 <div className="text-center">
                   {(() => {
                     switch (currentLayoutConfig.primary) {
                       case 'temperature':
-                        return <div className="text-4xl font-bold">{weather?.current.temperature}°C</div>
+                        return <div className="text-6xl font-bold leading-tight">{weather?.current.temperature}°C</div>
                       case 'feelsLike':
-                        return <div className="text-4xl font-bold">体感 {weather?.current.feelsLike}°C</div>
+                        return <div className="text-6xl font-bold leading-tight">体感 {weather?.current.feelsLike}°C</div>
                       case 'tempMinMax':
-                        return <div className="text-4xl font-bold">{weather?.current.tempMin}°C / {weather?.current.tempMax}°C</div>
+                        return <div className="text-6xl font-bold leading-tight">{weather?.current.tempMin}°C / {weather?.current.tempMax}°C</div>
                       case 'description':
-                        return <div className="text-4xl font-bold">{weather?.current.description}</div>
+                        return <div className="text-6xl font-bold leading-tight">{weather?.current.description}</div>
                       case 'location':
-                        return <div className="text-4xl font-bold">{weather?.location}</div>
+                        return <div className="text-6xl font-bold leading-tight">{weather?.location}</div>
                       case 'humidity':
-                        return <div className="text-4xl font-bold">{weather?.current.humidity}%</div>
+                        return <div className="text-6xl font-bold leading-tight">{weather?.current.humidity}%</div>
                       case 'windSpeed':
-                        return <div className="text-4xl font-bold">{weather?.current.windSpeed}m/s</div>
+                        return <div className="text-6xl font-bold leading-tight">{weather?.current.windSpeed}m/s</div>
                       case 'precipitationProbability':
-                        return <div className="text-4xl font-bold">{weather?.current.precipitationProbability}%</div>
+                        return <div className="text-6xl font-bold leading-tight">{weather?.current.precipitationProbability}%</div>
                       default:
                         return <div className="text-white/40">なし</div>
                     }
@@ -283,10 +282,9 @@ export default function WeatherWidget({
               </div>
 
               <div
-                className="p-3 rounded-xl border border-white/30 bg-white/5 cursor-pointer hover:bg-white/10 transition-all"
+                className="p-2 rounded-xl border border-white/30 cursor-pointer hover:bg-white/10"
                 onClick={() => setSelectedLayoutArea('secondary')}
               >
-                <div className="text-xs text-white/60 mb-1">セカンダリ表示</div>
                 <div className="text-center">
                   {(() => {
                     switch (currentLayoutConfig.secondary) {
@@ -314,10 +312,9 @@ export default function WeatherWidget({
               </div>
 
               <div
-                className="p-3 rounded-xl border border-white/30 bg-white/5 cursor-pointer hover:bg-white/10 transition-all"
+                className="p-2 rounded-xl border border-white/30 cursor-pointer hover:bg-white/10"
                 onClick={() => setSelectedLayoutArea('tertiary')}
               >
-                <div className="text-xs text-white/60 mb-1">サード表示</div>
                 <div className="text-center">
                   {(() => {
                     switch (currentLayoutConfig.tertiary) {
