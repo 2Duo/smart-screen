@@ -36,11 +36,24 @@ export interface WeatherData {
   location: string
   current: {
     temperature: number
+    feelsLike: number
+    tempMin: number
+    tempMax: number
     humidity: number
+    pressure: number
+    seaLevel: number
+    groundLevel: number
     description: string
     icon: string
     windSpeed: number
     windDirection: number
+    windGust: number
+    visibility: number
+    cloudiness: number
+    sunrise: string
+    sunset: string
+    uvIndex: number
+    precipitationProbability: number
   }
   forecast: WeatherForecast[]
   lastUpdated: string
