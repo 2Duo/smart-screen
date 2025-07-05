@@ -63,21 +63,27 @@ app.get('/api/weather', async (req, res) => {
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-    
+
     // Filter forecast entries for today only
-    const todayForecasts = forecastData.list?.filter((entry: any) => {
-      const entryDate = new Date(entry.dt * 1000);
-      return entryDate >= todayStart && entryDate < todayEnd;
-    }) || [];
-    
-    // Calculate daily precipitation probability (maximum probability during the day)
-    let maxPrecipitationProbability = 0;
+    const todayForecasts =
+      forecastData.list?.filter((entry: any) => {
+        const entryDate = new Date(entry.dt * 1000);
+        return entryDate >= todayStart && entryDate < todayEnd;
+      }) || [];
+
+    // OpenWeather's pop value is given for each 3h period. To estimate the
+    // probability that it rains at any point today we combine the values by
+    // calculating 1 - Π(1 - pop).
+    let combinedPop = 0;
     if (todayForecasts.length > 0) {
-      maxPrecipitationProbability = Math.max(...todayForecasts.map((entry: any) => entry.pop || 0));
-      maxPrecipitationProbability = Math.round(maxPrecipitationProbability * 100);
+      const noRainProbability = todayForecasts.reduce(
+        (acc: number, entry: any) => acc * (1 - (entry.pop || 0)),
+        1
+      );
+      combinedPop = Math.round((1 - noRainProbability) * 100);
     }
-    
-    const precipitationProbability = maxPrecipitationProbability;
+
+    const precipitationProbability = combinedPop;
 
     const weatherData = {
       location: data.name,
