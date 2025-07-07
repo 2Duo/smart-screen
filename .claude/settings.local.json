@@ -11,7 +11,18 @@
       "Bash(npm run:*)",
       "Bash(pkill:*)",
       "Bash(true)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git merge:*)",
+      "Bash(ls:*)",
+      "Bash(chmod:*)",
+      "Bash(grep:*)",
+      "Bash(./start.sh:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(grep:*)",
+      "Bash(touch:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)"
     ],
     "deny": []
   }

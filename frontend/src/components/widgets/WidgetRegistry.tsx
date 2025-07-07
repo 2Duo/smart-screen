@@ -2,8 +2,9 @@ import React from 'react'
 import type { WidgetType, Widget } from '../../../../shared/types'
 import ClockWidget from './ClockWidget'
 import WeatherWidget from './WeatherWidget'
+import CalendarWidget from './CalendarWidget'
 import { WidgetTemplate } from './WidgetTemplate'
-import { Calendar, Newspaper, Image, Settings, Trash2 } from 'lucide-react'
+import { Newspaper, Image, Settings, Trash2 } from 'lucide-react'
 
 /*
  * WIDGET REGISTRY - NEW WIDGET IMPLEMENTATION GUIDE
@@ -62,12 +63,8 @@ import { Calendar, Newspaper, Image, Settings, Trash2 } from 'lucide-react'
 const widgetComponents: Record<WidgetType, React.ComponentType<any>> = {
   clock: ClockWidget,
   weather: WeatherWidget,
+  calendar: CalendarWidget,
   // TODO: Implement these widgets following the WidgetTemplate pattern
-  calendar: () => (
-    <WidgetTemplate icon={Calendar} title="カレンダー">
-      <div className="text-center text-xl text-white/80">未実装</div>
-    </WidgetTemplate>
-  ),
   news: () => (
     <WidgetTemplate icon={Newspaper} title="ニュース">
       <div className="text-center text-xl text-white/80">未実装</div>
@@ -144,10 +141,10 @@ export const WidgetRenderer: React.FC<WidgetRendererProps> = ({
                 e.stopPropagation()
                 e.preventDefault()
               }}
-              className="group relative w-14 h-14 backdrop-blur-2xl bg-gradient-to-br from-red-400/20 via-rose-400/15 to-pink-400/20 hover:from-red-300/25 hover:via-rose-300/20 hover:to-pink-300/25 border border-red-300/30 hover:border-red-200/40 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-2xl shadow-red-500/20 hover:shadow-red-400/30 transform hover:scale-110 hover:rotate-3"
+              className="w-14 h-14 backdrop-blur-2xl bg-gradient-to-br from-red-400/20 via-rose-400/15 to-pink-400/20 border border-red-300/30 rounded-2xl flex items-center justify-center shadow-2xl shadow-red-500/20"
               title="ウィジェットを削除"
             >
-              <Trash2 size={18} className="text-white/90 group-hover:text-white transition-all duration-300 group-hover:scale-110" />
+              <Trash2 size={18} className="text-white/90" />
             </button>
           </div>
         </>
