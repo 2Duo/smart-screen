@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { secureStorageConfig } from '../utils/secureStorage'
+import { InputSanitizer } from '../utils/cryptoUtils'
 import type { Widget, WidgetType, WidgetConfig } from '../../../shared/types'
 
 interface WidgetState {
@@ -52,6 +54,7 @@ const defaultWidgetConfigs: Record<WidgetType, WidgetConfig> = {
       sunset: false,
       uvIndex: false,
       precipitationProbability: true,
+      rainPeriods: true,
       description: true,
       location: true,
     },
@@ -141,12 +144,22 @@ export const useWidgetStore = create<WidgetState>()(
       isEditMode: false,
       
       addWidget: (type: WidgetType, config?: WidgetConfig) => {
+        // Validate widget type
+        if (!widgetMetadata[type]) {
+          console.warn('Invalid widget type:', type)
+          return ''
+        }
+        
         const id = `${type}-${Date.now()}`
+        
+        // Sanitize config if provided
+        const sanitizedConfig = config ? InputSanitizer.sanitizeObject(config) : undefined
+        
         const newWidget: Widget = {
           id,
           type,
-          title: widgetMetadata[type].name,
-          config: { ...defaultWidgetConfigs[type], ...config },
+          title: InputSanitizer.sanitizeText(widgetMetadata[type].name),
+          config: { ...defaultWidgetConfigs[type], ...sanitizedConfig },
         }
         
         set((state) => ({
@@ -163,9 +176,12 @@ export const useWidgetStore = create<WidgetState>()(
       },
       
       updateWidget: (id: string, config: WidgetConfig) => {
+        // Sanitize config
+        const sanitizedConfig = InputSanitizer.sanitizeObject(config)
+        
         set((state) => ({
           widgets: state.widgets.map(widget =>
-            widget.id === id ? { ...widget, config } : widget
+            widget.id === id ? { ...widget, config: sanitizedConfig } : widget
           ),
         }))
       },
@@ -191,6 +207,7 @@ export const useWidgetStore = create<WidgetState>()(
     {
       name: 'smart-display-widgets',
       version: 1,
+      ...secureStorageConfig,
     }
   )
 )

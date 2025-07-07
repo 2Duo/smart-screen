@@ -32,6 +32,12 @@ export interface LayoutItem {
 export type Layout = LayoutItem[]
 
 // Weather types
+export interface RainPeriod {
+  start: string
+  end: string
+  probability: number
+}
+
 export interface WeatherData {
   location: string
   current: {
@@ -54,6 +60,7 @@ export interface WeatherData {
     sunset: string
     uvIndex: number
     precipitationProbability: number
+    rainPeriods: RainPeriod[]
   }
   forecast: WeatherForecast[]
   lastUpdated: string
@@ -93,6 +100,30 @@ export interface CitySearchResult {
   displayName: string
 }
 
+// Calendar types
+export interface CalendarEvent {
+  id: string
+  title: string
+  start: string // ISO 8601 datetime
+  end: string // ISO 8601 datetime
+  location?: string
+  description?: string
+  isAllDay: boolean
+  calendarId: string
+  calendarName?: string
+  attendees?: string[]
+  status: 'confirmed' | 'tentative' | 'cancelled'
+  recurring?: boolean
+}
+
+export interface CalendarData {
+  events: CalendarEvent[]
+  nextWeekEvents: CalendarEvent[]
+  lastUpdated: string
+  isAuthenticated: boolean
+  authUrl?: string
+}
+
 // API response types
 export interface APIResponse<T> {
   success: boolean
@@ -114,5 +145,11 @@ export interface AppConfig {
     gridSize: number
     margin: number
     autoSave: boolean
+  }
+  appearance: {
+    uiStyle: 'liquid-glass' | 'material-you'
+    backgroundType: 'gradient' | 'image'
+    backgroundImage?: string
+    backgroundOpacity: number
   }
 }

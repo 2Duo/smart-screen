@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react'
 import { LucideIcon, Settings } from 'lucide-react'
+import { useSettingsStore } from '../../stores/settingsStore'
 
 /*
  * WIDGET DEVELOPMENT GUIDELINES
@@ -51,7 +52,7 @@ interface WidgetTemplateProps {
   /** Widget icon component from lucide-react (required) */
   icon: LucideIcon
   /** Widget title displayed in header (required) */
-  title: string
+  title: string | ReactNode
   /** Optional settings button click handler */
   onSettings?: () => void
   /** Optional footer content (typically timestamps or status) */
@@ -73,28 +74,56 @@ export const WidgetTemplate: React.FC<WidgetTemplateProps> = ({
   children,
   className = ""
 }) => {
+  const { settings } = useSettingsStore()
+  const uiStyle = settings?.appearance?.uiStyle || 'liquid-glass'
+  
+  // Theme-aware styling
+  const isLiquidGlass = uiStyle === 'liquid-glass'
+  const isMaterialYou = uiStyle === 'material-you'
+  
+  const containerClass = isLiquidGlass 
+    ? 'glass-widget' 
+    : 'material-widget'
+    
+  const iconTextClass = isLiquidGlass 
+    ? 'text-white/80' 
+    : 'material-text-secondary'
+    
+  const titleTextClass = isLiquidGlass 
+    ? 'text-white/80' 
+    : 'material-text-primary'
+    
+  const settingsButtonClass = isLiquidGlass
+    ? 'p-2 rounded hover:bg-white/10 transition-colors flex-shrink-0'
+    : 'p-2 rounded hover:bg-gray-200 transition-colors flex-shrink-0'
+    
+  const settingsIconClass = isLiquidGlass
+    ? 'text-white/60'
+    : 'text-gray-600'
+    
+  const footerTextClass = isLiquidGlass
+    ? 'text-white/60'
+    : 'material-text-tertiary'
+
   return (
-    <div className={`h-full flex flex-col justify-between p-4 text-white relative ${className}`}>
+    <div className={`h-full flex flex-col justify-between p-4 relative ${containerClass} ${isLiquidGlass ? 'text-white' : ''} ${className}`}>
       {/* HEADER: Icon + Title + Settings */}
       <div className="flex items-center justify-between mb-3 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <IconComponent size={32} className="text-white/80" />
-          <span className="text-2xl font-semibold text-white/80">{title}</span>
+          <IconComponent size={32} className={iconTextClass} />
+          <div className={`text-2xl font-semibold ${titleTextClass}`}>{title}</div>
         </div>
         
         {onSettings && (
           <button
             onClick={onSettings}
-            className="p-2 rounded hover:bg-white/10 transition-colors flex-shrink-0"
+            className={settingsButtonClass}
             title="設定"
           >
-            <Settings size={20} className="text-white/60" />
+            <Settings size={20} className={settingsIconClass} />
           </button>
         )}
       </div>
-
-      {/* SETTINGS PANEL OVERLAY (Optional) */}
-      {settingsPanel}
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col justify-center min-h-0">
@@ -103,10 +132,13 @@ export const WidgetTemplate: React.FC<WidgetTemplateProps> = ({
 
       {/* FOOTER (Optional) */}
       {footer && (
-        <div className="text-sm text-white/60 text-center font-medium flex-shrink-0 mt-3">
+        <div className={`text-sm text-center font-medium flex-shrink-0 mt-3 ${footerTextClass}`}>
           {footer}
         </div>
       )}
+
+      {/* SETTINGS PANEL OVERLAY (Optional) */}
+      {settingsPanel}
     </div>
   )
 }
