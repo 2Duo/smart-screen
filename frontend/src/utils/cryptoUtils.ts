@@ -32,15 +32,18 @@ class SecureStorage {
   }
 
   private initializeMasterKey(): void {
-    // Try to get existing master key from sessionStorage (temporary per session)
-    const sessionKey = sessionStorage.getItem('_sk')
-    if (sessionKey) {
-      this.masterKey = sessionKey
+    // Try to get existing master key from localStorage (persistent)
+    const persistentKey = localStorage.getItem('_sdk_key')
+    if (persistentKey) {
+      this.masterKey = persistentKey
       return
     }
 
-    // Generate new master key for this session
+    // Generate new master key and store persistently
     this.masterKey = this.generateSecureKey()
+    localStorage.setItem('_sdk_key', this.masterKey)
+    
+    // Also store in session for faster access
     sessionStorage.setItem('_sk', this.masterKey)
   }
 

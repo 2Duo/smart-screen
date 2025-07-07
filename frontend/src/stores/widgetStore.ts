@@ -137,8 +137,8 @@ const initialWidgets: Widget[] = [
   },
 ]
 
-export const useWidgetStore = create<WidgetState>()(
-  persist(
+export const useWidgetStore = create(
+  persist<WidgetState>(
     (set, get) => ({
       widgets: initialWidgets,
       isEditMode: false,

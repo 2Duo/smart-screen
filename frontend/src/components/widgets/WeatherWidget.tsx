@@ -86,12 +86,28 @@ export default function WeatherWidget({
   const { data: weather, isLoading, error, refetch } = useQuery<WeatherData>({
     queryKey: ['weather', currentLocation, widgetId],
     queryFn: async () => {
-      const response = await fetch(`http://localhost:3001/api/weather?location=${encodeURIComponent(currentLocation)}`)
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
+      const url = `${baseUrl}/api/weather?location=${encodeURIComponent(currentLocation)}`
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        mode: 'cors',
+        credentials: 'include',
+      })
+      
+      if (!response.ok) {
+        const errorObj = new Error(`HTTP ${response.status}: ${response.statusText}`)
+        ;(errorObj as any).statusCode = response.status
+        throw errorObj
+      }
+      
       const result: APIResponse<WeatherData> = await response.json()
       
       if (!result.success) {
         const errorObj = new Error(result.error || 'Failed to fetch weather data')
-        // Add status code to error for better handling
         ;(errorObj as any).statusCode = response.status
         throw errorObj
       }
@@ -103,22 +119,55 @@ export default function WeatherWidget({
   })
 
   // City search query
-  const { data: cities, isLoading: isSearching } = useQuery<CitySearchResult[]>({
+  const { data: cities, isLoading: isSearching, error: searchError } = useQuery<CitySearchResult[]>({
     queryKey: ['cities', searchQuery],
     queryFn: async () => {
       if (searchQuery.length < 2) return []
       
-      const response = await fetch(`http://localhost:3001/api/weather/cities?q=${encodeURIComponent(searchQuery)}`)
-      const result: APIResponse<CitySearchResult[]> = await response.json()
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
+      const url = `${baseUrl}/api/weather/cities?q=${encodeURIComponent(searchQuery)}`
       
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to search cities')
+      console.log('Environment VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL)
+      console.log('Using baseUrl:', baseUrl)
+      console.log('Fetching cities from:', url)
+      
+      try {
+        // First, test basic connectivity
+        const testResponse = await fetch(`${baseUrl}/health`)
+        console.log('Health check response:', testResponse.status)
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          mode: 'cors',
+          credentials: 'include',
+        })
+        
+        console.log('Response status:', response.status)
+        console.log('Response ok:', response.ok)
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+        
+        const result: APIResponse<CitySearchResult[]> = await response.json()
+        console.log('Search result:', result)
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Search failed')
+        }
+        
+        return result.data || []
+      } catch (error) {
+        console.error('City search error:', error)
+        throw error
       }
-      
-      return result.data || []
     },
     enabled: searchQuery.length >= 2,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: 1, // Only retry once for search
   })
 
   const handleLocationSelect = (cityName: string) => {
@@ -206,20 +255,47 @@ export default function WeatherWidget({
             <div className={`text-sm font-medium mb-2 ${labelClass}`}>
               地点検索
             </div>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="都市名を入力..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full px-4 py-2 pr-10 rounded-xl border text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 ${inputClass}`}
-              />
-              <Search size={18} className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${isLiquidGlass ? 'text-white/40' : 'text-gray-400'}`} />
+            <div className="space-y-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="都市名を入力..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    console.log('Search query changed:', value)
+                    setSearchQuery(value)
+                  }}
+                  className={`w-full px-4 py-2 pr-10 rounded-xl border text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 ${inputClass}`}
+                />
+                <Search size={18} className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${isLiquidGlass ? 'text-white/40' : 'text-gray-400'}`} />
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
+                    console.log('Testing API connection to:', baseUrl)
+                    const response = await fetch(`${baseUrl}/health`)
+                    const data = await response.json()
+                    console.log('API Test Result:', data)
+                    alert(`API接続テスト: ${response.ok ? '成功' : '失敗'} (${response.status})`)
+                  } catch (error) {
+                    console.error('API Test Error:', error)
+                    alert(`API接続エラー: ${error}`)
+                  }
+                }}
+                className={`text-xs px-3 py-1 rounded ${isLiquidGlass ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-600'}`}
+              >
+                API接続テスト
+              </button>
             </div>
           </div>
           
           {cities && cities.length > 0 && (
             <div className="max-h-48 overflow-y-auto space-y-2">
+              <div className={`text-xs mb-2 ${isLiquidGlass ? 'text-white/40' : 'text-gray-400'}`}>
+                {cities.length}件の結果
+              </div>
               {cities.map((city, index) => (
                 <button
                   key={index}
@@ -237,15 +313,21 @@ export default function WeatherWidget({
             </div>
           )}
           
-          {searchQuery && cities && cities.length === 0 && !isSearching && (
+          {searchQuery.length >= 2 && cities && cities.length === 0 && !isSearching && (
             <div className={`text-center py-8 ${isLiquidGlass ? 'text-white/60' : 'text-gray-500'}`}>
-              該当する都市が見つかりません
+              「{searchQuery}」に該当する都市が見つかりません
             </div>
           )}
           
           {isSearching && (
             <div className={`text-center py-8 ${isLiquidGlass ? 'text-white/60' : 'text-gray-500'}`}>
               検索中...
+            </div>
+          )}
+          
+          {searchError && (
+            <div className={`text-center py-8 ${isLiquidGlass ? 'text-red-300' : 'text-red-500'}`}>
+              検索エラー: {(searchError as Error).message}
             </div>
           )}
         </>

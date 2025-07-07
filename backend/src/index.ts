@@ -23,6 +23,7 @@ const io = new Server(server, {
     origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
       const allowedOrigins = [
         process.env.FRONTEND_URL || "http://localhost:5173",
+        "http://localhost:5174", // Alternative dev port
         process.env.PRODUCTION_FRONTEND_URL || "https://yourdomain.com",
       ].filter(Boolean);
 
@@ -156,6 +157,7 @@ const corsOptions = {
   origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
     const allowedOrigins = [
       process.env.FRONTEND_URL || "http://localhost:5173",
+      "http://localhost:5174", // Alternative dev port
       process.env.PRODUCTION_FRONTEND_URL || "https://yourdomain.com",
     ].filter(Boolean);
 
