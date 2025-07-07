@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { secureStorageConfig } from '../utils/secureStorage'
 import { InputSanitizer } from '../utils/cryptoUtils'
 
 interface WeatherSettings {
@@ -175,9 +174,8 @@ export const useSettingsStore = create<SettingsStore>()(
     {
       name: 'smart-display-settings',
       version: 1,
-      ...secureStorageConfig,
       // Ensure proper initialization
-      onRehydrateStorage: (name) => (state, error) => {
+      onRehydrateStorage: () => (state, error) => {
         console.log('Settings rehydrated:', state)
         console.log('Rehydration error:', error)
         
