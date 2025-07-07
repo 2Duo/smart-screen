@@ -126,7 +126,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://api.openweathermap.org", "wss:", "ws:"],
+      connectSrc: ["'self'", "http://localhost:3001", "http://localhost:5173", "http://localhost:5174", "https://api.openweathermap.org", "wss:", "ws:"],
       fontSrc: ["'self'", "https:"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],

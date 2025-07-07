@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { secureStorageConfig } from '../utils/secureStorage'
 import type { Layout, LayoutItem, WidgetType } from '../../../shared/types'
 import { widgetMetadata } from './widgetStore'
 
@@ -107,7 +106,6 @@ export const useLayoutStore = create<LayoutState>()(
     {
       name: 'smart-display-layout',
       version: 1,
-      ...secureStorageConfig,
       onRehydrateStorage: () => {
         console.log('Layout store hydration started')
         return (state: LayoutState | undefined, error: unknown) => {

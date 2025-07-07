@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { secureStorageConfig } from '../utils/secureStorage'
 import { InputSanitizer } from '../utils/cryptoUtils'
 import type { Widget, WidgetType, WidgetConfig } from '../../../shared/types'
 
@@ -207,7 +206,6 @@ export const useWidgetStore = create(
     {
       name: 'smart-display-widgets',
       version: 1,
-      ...secureStorageConfig,
     }
   )
 )

@@ -94,7 +94,16 @@ function App() {
   }, [connect, disconnect])
 
   const handleLayoutChange = (newLayout: any) => {
+    console.log('Layout change detected:', newLayout)
+    console.log('Previous layout:', layout)
     updateLayout(newLayout)
+    console.log('Layout updated in store')
+    
+    // Debug: Check localStorage content
+    setTimeout(() => {
+      const storedData = localStorage.getItem('smart-display-layout')
+      console.log('Stored layout data:', storedData)
+    }, 100)
   }
 
   const handleRemoveWidget = (widgetId: string) => {
@@ -139,6 +148,13 @@ function App() {
     isEditMode, 
     themeClass 
   })
+  
+  // Debug: Check localStorage on render
+  const storedLayoutData = localStorage.getItem('smart-display-layout')
+  console.log('Current localStorage layout data:', storedLayoutData)
+  
+  // Debug: Show all localStorage keys
+  console.log('All localStorage keys:', Object.keys(localStorage))
 
   return (
     <div 
@@ -150,6 +166,29 @@ function App() {
         className="absolute inset-0 bg-black"
         style={{ opacity: overlayOpacity }}
       />
+      {/* Debug Panel */}
+      <div className="absolute top-8 left-8 z-40">
+        <button
+          onClick={() => {
+            console.log('=== LAYOUT DEBUG ===')
+            console.log('Current layout from store:', layout)
+            console.log('localStorage item:', localStorage.getItem('smart-display-layout'))
+            console.log('All localStorage keys:', Object.keys(localStorage))
+            
+            // Force save current layout
+            const testLayout = [
+              { i: 'clock', x: 0, y: 0, w: 4, h: 2, minW: 3, minH: 2 },
+              { i: 'weather', x: 4, y: 0, w: 4, h: 3, minW: 3, minH: 3 },
+            ]
+            localStorage.setItem('test-layout', JSON.stringify(testLayout))
+            console.log('Test layout saved:', localStorage.getItem('test-layout'))
+          }}
+          className="px-3 py-1 bg-red-500/20 text-red-300 rounded text-xs border border-red-400/30"
+        >
+          Debug Layout
+        </button>
+      </div>
+
       {/* Control Panel */}
       <div className="absolute top-8 right-8 z-40 flex gap-4">
         <button
