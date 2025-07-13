@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
+import fs from 'fs'
 
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
@@ -11,13 +12,16 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     port: 5173,
-    host: true,
-    // Security headers for development
+    host: true, // Allow LAN access
+    https: process.env.VITE_ENABLE_HTTPS === 'true' ? {
+      key: fs.readFileSync(resolve(__dirname, 'server.key')),
+      cert: fs.readFileSync(resolve(__dirname, 'server.crt'))
+    } : false,
+    // Optimized headers for LAN-only environment
     headers: {
       'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-      'X-XSS-Protection': '1; mode=block',
-      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'X-Frame-Options': 'SAMEORIGIN', // Allow same-origin framing for LAN
+      'Referrer-Policy': 'no-referrer-when-downgrade', // Relaxed for LAN
     },
   },
   build: {

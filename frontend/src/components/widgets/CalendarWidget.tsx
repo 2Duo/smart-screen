@@ -50,7 +50,12 @@ export default function CalendarWidget({
   const { data: calendarStatus } = useQuery({
     queryKey: ['calendar-status'],
     queryFn: async () => {
-      const response = await fetch(`http://localhost:3001/api/calendar/status`)
+      // Dynamic API base URL - use current host for LAN access
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 
+        (window.location.hostname === 'localhost' 
+          ? 'http://localhost:3001' 
+          : `http://${window.location.hostname}:3001`)
+      const response = await fetch(`${baseUrl}/api/calendar/status`)
       const result: APIResponse<{ isAuthenticated: boolean }> = await response.json()
       
       if (!result.success) {
@@ -66,13 +71,18 @@ export default function CalendarWidget({
   const { data: calendarData, isLoading, error, refetch } = useQuery<CalendarData>({
     queryKey: ['calendar-events', widgetId, currentDaysPeriod],
     queryFn: async () => {
-      const response = await fetch(`http://localhost:3001/api/calendar/events?days=${currentDaysPeriod}`)
+      // Dynamic API base URL - use current host for LAN access
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 
+        (window.location.hostname === 'localhost' 
+          ? 'http://localhost:3001' 
+          : `http://${window.location.hostname}:3001`)
+      const response = await fetch(`${baseUrl}/api/calendar/events?days=${currentDaysPeriod}`)
       const result: APIResponse<CalendarData> = await response.json()
       
       if (!result.success) {
         if (response.status === 401) {
           // User not authenticated, fetch auth URL
-          const authResponse = await fetch(`http://localhost:3001/api/calendar/auth`)
+          const authResponse = await fetch(`${baseUrl}/api/calendar/auth`)
           const authResult: APIResponse<{ authUrl: string }> = await authResponse.json()
           
           if (authResult.success) {
@@ -97,7 +107,12 @@ export default function CalendarWidget({
 
   const handleAuthenticate = async () => {
     try {
-      const response = await fetch(`http://localhost:3001/api/calendar/auth`)
+      // Dynamic API base URL - use current host for LAN access
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 
+        (window.location.hostname === 'localhost' 
+          ? 'http://localhost:3001' 
+          : `http://${window.location.hostname}:3001`)
+      const response = await fetch(`${baseUrl}/api/calendar/auth`)
       const result: APIResponse<{ authUrl: string }> = await response.json()
       
       if (result.success && result.data?.authUrl) {

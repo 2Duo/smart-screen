@@ -13,6 +13,12 @@
 
 .theme-liquid-glass .glass-widget {
   @apply backdrop-blur-3xl bg-gradient-to-br from-white/[0.08] via-white/5 to-white/[0.08] border border-white/20 rounded-2xl;
+  contain: layout style paint;
+  overflow: hidden;
+  clip-path: inset(0 round 1rem);
+  isolation: isolate;
+  transform: translateZ(0);
+  will-change: auto;
 }
 
 /* Material You Theme */
@@ -52,4 +58,23 @@
 /* Theme transitions */
 .theme-transition {
   @apply transition-all duration-500 ease-out;
+}
+
+/* Mobile/Android specific fixes */
+@media (hover: none) and (pointer: coarse) {
+  .theme-liquid-glass .glass-widget {
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-width: 1px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
+  }
+}
+
+/* Android Chrome specific fixes */
+@supports (-webkit-touch-callout: none) {
+  .theme-liquid-glass .glass-widget {
+    contain: layout style paint size;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
 }

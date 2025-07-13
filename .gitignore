@@ -119,3 +119,10 @@ out/
 
 # Token storage (sensitive data)
 backend/data/
+
+# SSL/TLS Certificates and Keys
+*.crt
+*.key
+*.pem
+*.p12
+*.pfx

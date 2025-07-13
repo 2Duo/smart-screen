@@ -8,7 +8,7 @@ import { useSettingsStore } from './stores/settingsStore'
 import { WidgetRenderer } from './components/widgets/WidgetRegistry'
 import { WidgetSelectionPanel } from './components/WidgetSelectionPanel'
 import { SettingsPanel } from './components/SettingsPanel'
-import { SecurityCheck } from './components/SecurityCheck'
+import { PWAControls } from './components/PWAControls'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 import './styles/themes.css'
@@ -167,30 +167,33 @@ function App() {
         style={{ opacity: overlayOpacity }}
       />
       {/* Debug Panel */}
-      <div className="absolute top-8 left-8 z-40">
-        <button
-          onClick={() => {
-            console.log('=== LAYOUT DEBUG ===')
-            console.log('Current layout from store:', layout)
-            console.log('localStorage item:', localStorage.getItem('smart-display-layout'))
-            console.log('All localStorage keys:', Object.keys(localStorage))
-            
-            // Force save current layout
-            const testLayout = [
-              { i: 'clock', x: 0, y: 0, w: 4, h: 2, minW: 3, minH: 2 },
-              { i: 'weather', x: 4, y: 0, w: 4, h: 3, minW: 3, minH: 3 },
-            ]
-            localStorage.setItem('test-layout', JSON.stringify(testLayout))
-            console.log('Test layout saved:', localStorage.getItem('test-layout'))
-          }}
-          className="px-3 py-1 bg-red-500/20 text-red-300 rounded text-xs border border-red-400/30"
-        >
-          Debug Layout
-        </button>
-      </div>
+      {import.meta.env.VITE_DEBUG_MODE === 'true' && (
+        <div className="absolute top-8 left-8 z-40">
+          <button
+            onClick={() => {
+              console.log('=== LAYOUT DEBUG ===')
+              console.log('Current layout from store:', layout)
+              console.log('localStorage item:', localStorage.getItem('smart-display-layout'))
+              console.log('All localStorage keys:', Object.keys(localStorage))
+              
+              // Force save current layout
+              const testLayout = [
+                { i: 'clock', x: 0, y: 0, w: 4, h: 2, minW: 3, minH: 2 },
+                { i: 'weather', x: 4, y: 0, w: 4, h: 3, minW: 3, minH: 3 },
+              ]
+              localStorage.setItem('test-layout', JSON.stringify(testLayout))
+              console.log('Test layout saved:', localStorage.getItem('test-layout'))
+            }}
+            className="px-3 py-1 bg-red-500/20 text-red-300 rounded text-xs border border-red-400/30"
+          >
+            Debug Layout
+          </button>
+        </div>
+      )}
 
       {/* Control Panel */}
       <div className="absolute top-8 right-8 z-40 flex gap-4">
+        <PWAControls />
         <button
           onClick={handleToggleEditMode}
           className={`relative p-3 rounded-xl ${
@@ -291,8 +294,6 @@ function App() {
         })}
       </ResponsiveGridLayout>
 
-      {/* Security Check Component */}
-      <SecurityCheck />
     </div>
   )
 }

@@ -298,7 +298,7 @@ export class InputSanitizer {
 }
 
 /**
- * URL validation utilities
+ * URL validation utilities optimized for LAN-only usage
  */
 export class URLValidator {
   private static readonly ALLOWED_DOMAINS = [
@@ -311,10 +311,10 @@ export class URLValidator {
     // Add other trusted domains as needed
   ]
 
-  private static readonly ALLOWED_PROTOCOLS = ['https:', 'http:']
+  private static readonly ALLOWED_PROTOCOLS = ['https:', 'http:', 'ws:', 'wss:']
 
   /**
-   * Check if URL is allowed for external requests
+   * Check if URL is allowed for requests (relaxed for LAN usage)
    */
   static isAllowedURL(url: string): boolean {
     try {
@@ -330,8 +330,25 @@ export class URLValidator {
         return true
       }
 
-      // Check domain whitelist
       const hostname = urlObj.hostname.toLowerCase()
+      
+      // Allow all local/LAN addresses
+      if (hostname === 'localhost' ||
+          hostname.startsWith('192.168.') ||
+          hostname.startsWith('10.') ||
+          hostname.startsWith('172.16.') ||
+          hostname.startsWith('172.17.') ||
+          hostname.startsWith('172.18.') ||
+          hostname.startsWith('172.19.') ||
+          hostname.startsWith('172.2') ||
+          hostname.startsWith('172.30.') ||
+          hostname.startsWith('172.31.') ||
+          hostname === '127.0.0.1' ||
+          hostname === '0.0.0.0') {
+        return true
+      }
+
+      // Check domain whitelist for external services
       return this.ALLOWED_DOMAINS.some(domain => 
         hostname === domain || hostname.endsWith(`.${domain}`)
       )
@@ -372,22 +389,22 @@ export class CSPManager {
       existingCSP.remove()
     }
 
-    // Create new CSP meta tag
+    // Create new CSP meta tag optimized for LAN-only usage
     const cspMeta = document.createElement('meta')
     cspMeta.httpEquiv = 'Content-Security-Policy'
+    
     cspMeta.content = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'", // Note: unsafe-inline needed for Vite in dev
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Allow inline scripts for LAN environment
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com",
+      "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: https: blob:",
-      "connect-src 'self' https://api.openweathermap.org https://accounts.google.com ws: wss:",
+      "connect-src 'self' http: https: ws: wss:", // Open for LAN access
       "frame-src 'self' https://accounts.google.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
-      "frame-ancestors 'none'",
-      "upgrade-insecure-requests"
+      "frame-ancestors 'self'" // Allow same-origin framing for LAN
     ].join('; ')
 
     document.head.appendChild(cspMeta)

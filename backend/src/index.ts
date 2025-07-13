@@ -27,7 +27,10 @@ const io = new Server(server, {
         process.env.PRODUCTION_FRONTEND_URL || "https://yourdomain.com",
       ].filter(Boolean);
 
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow local network access (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+      const isLocalNetwork = origin && /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(origin);
+
+      if (!origin || allowedOrigins.includes(origin) || isLocalNetwork) {
         callback(null, true);
       } else {
         callback(new Error('Socket.IO: Not allowed by CORS'), false);
@@ -51,16 +54,8 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3001;
 
-// Trust proxy for HTTPS enforcement
+// Trust proxy for local network requests
 app.set('trust proxy', true);
-
-// HTTPS enforcement middleware
-app.use((req, res, next) => {
-  if (process.env.NODE_ENV === 'production' && req.header('x-forwarded-proto') !== 'https') {
-    return res.redirect(301, `https://${req.header('host')}${req.url}`);
-  }
-  next();
-});
 
 // Rate limiting configurations
 const generalLimiter = rateLimit({
@@ -118,38 +113,34 @@ const healthCheckLimiter = rateLimit({
   legacyHeaders: false
 });
 
-// Middleware
+// Security middleware optimized for LAN-only usage
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "http://localhost:3001", "http://localhost:5173", "http://localhost:5174", "https://api.openweathermap.org", "wss:", "ws:"],
-      fontSrc: ["'self'", "https:"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for LAN environment
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "http:", "https:", "ws:", "wss:"], // Open for LAN access
+      fontSrc: ["'self'", "https:", "data:"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
       frameSrc: ["'self'", "https://accounts.google.com"],
-      upgradeInsecureRequests: [],
     },
   },
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true,
-  },
+  // Disable HSTS completely for LAN-only system
+  hsts: false,
   frameguard: {
-    action: 'deny',
+    action: 'sameorigin', // Allow same-origin framing for LAN
   },
   noSniff: true,
   xssFilter: true,
-  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  referrerPolicy: { policy: 'no-referrer-when-downgrade' }, // Relaxed for LAN
   permittedCrossDomainPolicies: false,
   crossOriginEmbedderPolicy: false,
-  dnsPrefetchControl: { allow: false },
+  dnsPrefetchControl: { allow: true }, // Allow DNS prefetch for performance
   ieNoOpen: true,
-  originAgentCluster: true,
+  originAgentCluster: false, // Disable for LAN compatibility
 }));
 
 // CORS configuration with stricter settings
@@ -161,7 +152,10 @@ const corsOptions = {
       process.env.PRODUCTION_FRONTEND_URL || "https://yourdomain.com",
     ].filter(Boolean);
 
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow local network access (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+    const isLocalNetwork = origin && /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(origin);
+
+    if (!origin || allowedOrigins.includes(origin) || isLocalNetwork) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'), false);
@@ -1123,7 +1117,7 @@ app.use((req, res, next) => {
   next();
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Smart Display Server running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
   console.log(`Security measures enabled: Rate limiting, Input validation, XSS protection, Path traversal protection`);

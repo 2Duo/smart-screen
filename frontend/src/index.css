@@ -40,6 +40,9 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
   backdrop-filter: blur(10px);
+  contain: layout style;
+  overflow: hidden;
+  isolation: isolate;
 }
 
 .react-grid-item.cssTransforms {
@@ -59,4 +62,14 @@
   background-origin: content-box;
   box-sizing: border-box;
   cursor: se-resize;
+}
+
+/* Mobile/Android specific grid fixes */
+@media (hover: none) and (pointer: coarse) {
+  .react-grid-item:not(.react-grid-placeholder) {
+    backdrop-filter: blur(6px) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
+    transform: translateZ(0);
+    will-change: auto;
+  }
 }

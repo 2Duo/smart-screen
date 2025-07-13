@@ -1,7 +1,28 @@
 #!/bin/bash
 
 # Smart Screen 開発サーバー起動スクリプト
+DEBUG_MODE=false
+
+# 引数解析
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --debug)
+      DEBUG_MODE=true
+      shift
+      ;;
+    *)
+      echo "不明なオプション: $1"
+      echo "使用方法: $0 [--debug]"
+      exit 1
+      ;;
+  esac
+done
+
 echo "🚀 Smart Screen 開発サーバーを起動しています..."
+if [ "$DEBUG_MODE" = true ]; then
+  echo "🐛 デバッグモードで起動中..."
+  export VITE_DEBUG_MODE=true
+fi
 
 # バックエンドサーバーを起動
 echo "📡 バックエンドサーバーを起動中..."

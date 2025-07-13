@@ -86,7 +86,11 @@ export default function WeatherWidget({
   const { data: weather, isLoading, error, refetch } = useQuery<WeatherData>({
     queryKey: ['weather', currentLocation, widgetId],
     queryFn: async () => {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
+      // Dynamic API base URL - use current host for LAN access
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 
+        (window.location.hostname === 'localhost' 
+          ? 'http://localhost:3001' 
+          : `http://${window.location.hostname}:3001`)
       const url = `${baseUrl}/api/weather?location=${encodeURIComponent(currentLocation)}`
       
       const response = await fetch(url, {
@@ -124,18 +128,16 @@ export default function WeatherWidget({
     queryFn: async () => {
       if (searchQuery.length < 2) return []
       
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
+      // Dynamic API base URL - use current host for LAN access
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 
+        (window.location.hostname === 'localhost' 
+          ? 'http://localhost:3001' 
+          : `http://${window.location.hostname}:3001`)
       const url = `${baseUrl}/api/weather/cities?q=${encodeURIComponent(searchQuery)}`
       
-      console.log('Environment VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL)
-      console.log('Using baseUrl:', baseUrl)
-      console.log('Fetching cities from:', url)
+      console.log('Searching cities:', searchQuery)
       
       try {
-        // First, test basic connectivity
-        const testResponse = await fetch(`${baseUrl}/health`)
-        console.log('Health check response:', testResponse.status)
-        
         const response = await fetch(url, {
           method: 'GET',
           headers: {
@@ -145,15 +147,12 @@ export default function WeatherWidget({
           credentials: 'include',
         })
         
-        console.log('Response status:', response.status)
-        console.log('Response ok:', response.ok)
         
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`)
         }
         
         const result: APIResponse<CitySearchResult[]> = await response.json()
-        console.log('Search result:', result)
         
         if (!result.success) {
           throw new Error(result.error || 'Search failed')
@@ -161,7 +160,6 @@ export default function WeatherWidget({
         
         return result.data || []
       } catch (error) {
-        console.error('City search error:', error)
         throw error
       }
     },
@@ -255,39 +253,18 @@ export default function WeatherWidget({
             <div className={`text-sm font-medium mb-2 ${labelClass}`}>
               地点検索
             </div>
-            <div className="space-y-2">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="都市名を入力..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    console.log('Search query changed:', value)
-                    setSearchQuery(value)
-                  }}
-                  className={`w-full px-4 py-2 pr-10 rounded-xl border text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 ${inputClass}`}
-                />
-                <Search size={18} className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${isLiquidGlass ? 'text-white/40' : 'text-gray-400'}`} />
-              </div>
-              <button
-                onClick={async () => {
-                  try {
-                    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
-                    console.log('Testing API connection to:', baseUrl)
-                    const response = await fetch(`${baseUrl}/health`)
-                    const data = await response.json()
-                    console.log('API Test Result:', data)
-                    alert(`API接続テスト: ${response.ok ? '成功' : '失敗'} (${response.status})`)
-                  } catch (error) {
-                    console.error('API Test Error:', error)
-                    alert(`API接続エラー: ${error}`)
-                  }
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="都市名を入力..."
+                value={searchQuery}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setSearchQuery(value)
                 }}
-                className={`text-xs px-3 py-1 rounded ${isLiquidGlass ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-600'}`}
-              >
-                API接続テスト
-              </button>
+                className={`w-full px-4 py-2 pr-10 rounded-xl border text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 ${inputClass}`}
+              />
+              <Search size={18} className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${isLiquidGlass ? 'text-white/40' : 'text-gray-400'}`} />
             </div>
           </div>
           

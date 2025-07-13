@@ -17,23 +17,67 @@ interface SocketState {
   emitWeatherRequest: (location?: string) => void
 }
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
+// Dynamic Socket.IO URL - force HTTP for LAN access
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 
+  (typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
+    ? `http://${window.location.hostname}:3001` 
+    : 'http://localhost:3001')
 
 export const useSocketStore = create<SocketState>((set, get) => ({
   socket: null,
   isConnected: false,
   
   connect: () => {
-    const socket = io(SOCKET_URL)
+    const socket = io(SOCKET_URL, {
+      // Force HTTP transport and disable HTTPS
+      transports: ['polling', 'websocket'],
+      upgrade: true,
+      rememberUpgrade: false,
+      forceNew: true,
+      // Explicitly force HTTP protocol
+      secure: false,
+      // Additional options for LAN/cross-origin access
+      timeout: 20000,
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5,
+      // Force polling first for better compatibility
+      forceBase64: false,
+      withCredentials: false,
+    })
     
     socket.on('connect', () => {
-      console.log('Connected to server')
+      console.log('✅ Socket.IO Connected to server')
       set({ isConnected: true })
     })
     
-    socket.on('disconnect', () => {
-      console.log('Disconnected from server')
+    socket.on('disconnect', (reason) => {
+      console.log('❌ Socket.IO Disconnected from server:', reason)
       set({ isConnected: false })
+    })
+    
+    socket.on('connect_error', (error) => {
+      console.error('❌ Socket.IO Connection error:', {
+        error: error,
+        message: error.message,
+        description: error.description,
+        context: {
+          socketUrl: SOCKET_URL,
+          currentUrl: typeof window !== 'undefined' ? window.location.href : 'undefined'
+        }
+      })
+    })
+    
+    socket.on('reconnect', (attempt) => {
+      console.log('🔄 Socket.IO Reconnected after attempt:', attempt)
+    })
+    
+    socket.on('reconnect_error', (error) => {
+      console.error('❌ Socket.IO Reconnection error:', error)
+    })
+    
+    socket.on('reconnect_failed', () => {
+      console.error('❌ Socket.IO Reconnection failed completely')
     })
     
     socket.on('layout-updated', (layout: Layout) => {
