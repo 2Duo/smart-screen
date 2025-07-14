@@ -13,13 +13,15 @@ interface CalendarWidgetProps {
   layoutConfig?: any
   displayOptions?: any
   widgetId?: string
+  isGlobalSettingsMode?: boolean
 }
 
 export default function CalendarWidget({ 
   maxEvents: propMaxEvents,
   layoutConfig: propLayoutConfig,
   displayOptions: propDisplayOptions,
-  widgetId
+  widgetId,
+  isGlobalSettingsMode = false
 }: CalendarWidgetProps) {
   const { updateWidget, getWidget } = useWidgetStore()
   const { settings } = useSettingsStore()
@@ -50,12 +52,8 @@ export default function CalendarWidget({
   const { data: calendarStatus } = useQuery({
     queryKey: ['calendar-status'],
     queryFn: async () => {
-      // Dynamic API base URL - use current host for LAN access
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 
-        (window.location.hostname === 'localhost' 
-          ? 'http://localhost:3001' 
-          : `http://${window.location.hostname}:3001`)
-      const response = await fetch(`${baseUrl}/api/calendar/status`)
+      // Use proxy API path for same-origin requests  
+      const response = await fetch('/api/calendar/status')
       const result: APIResponse<{ isAuthenticated: boolean }> = await response.json()
       
       if (!result.success) {
@@ -71,18 +69,14 @@ export default function CalendarWidget({
   const { data: calendarData, isLoading, error, refetch } = useQuery<CalendarData>({
     queryKey: ['calendar-events', widgetId, currentDaysPeriod],
     queryFn: async () => {
-      // Dynamic API base URL - use current host for LAN access
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 
-        (window.location.hostname === 'localhost' 
-          ? 'http://localhost:3001' 
-          : `http://${window.location.hostname}:3001`)
-      const response = await fetch(`${baseUrl}/api/calendar/events?days=${currentDaysPeriod}`)
+      // Use proxy API path for same-origin requests
+      const response = await fetch(`/api/calendar/events?days=${currentDaysPeriod}`)
       const result: APIResponse<CalendarData> = await response.json()
       
       if (!result.success) {
         if (response.status === 401) {
           // User not authenticated, fetch auth URL
-          const authResponse = await fetch(`${baseUrl}/api/calendar/auth`)
+          const authResponse = await fetch('/api/calendar/auth')
           const authResult: APIResponse<{ authUrl: string }> = await authResponse.json()
           
           if (authResult.success) {
@@ -108,11 +102,12 @@ export default function CalendarWidget({
   const handleAuthenticate = async () => {
     try {
       // Dynamic API base URL - use current host for LAN access
+      const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
       const baseUrl = import.meta.env.VITE_API_BASE_URL || 
         (window.location.hostname === 'localhost' 
-          ? 'http://localhost:3001' 
-          : `http://${window.location.hostname}:3001`)
-      const response = await fetch(`${baseUrl}/api/calendar/auth`)
+          ? `${protocol}://localhost:3001` 
+          : `${protocol}://${window.location.hostname}:3001`)
+      const response = await fetch('/api/calendar/auth')
       const result: APIResponse<{ authUrl: string }> = await response.json()
       
       if (result.success && result.data?.authUrl) {
@@ -281,7 +276,7 @@ export default function CalendarWidget({
   ]
 
   const renderSettingsPanel = () => {
-    if (!isSettingsOpen) return null
+    if (!isSettingsOpen || isGlobalSettingsMode) return null
     
     const panelClass = isLiquidGlass 
       ? 'glass-panel' 
@@ -491,7 +486,7 @@ export default function CalendarWidget({
       <WidgetTemplate
         icon={Calendar}
         title={renderTitle()}
-        onSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+        onSettings={!isGlobalSettingsMode ? () => setIsSettingsOpen(!isSettingsOpen) : undefined}
         settingsPanel={renderSettingsPanel()}
       >
         <div className="text-center">
@@ -508,7 +503,7 @@ export default function CalendarWidget({
       <WidgetTemplate
         icon={Calendar}
         title={renderTitle()}
-        onSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+        onSettings={!isGlobalSettingsMode ? () => setIsSettingsOpen(!isSettingsOpen) : undefined}
         settingsPanel={renderSettingsPanel()}
       >
         <div className="text-center space-y-4">
@@ -537,7 +532,7 @@ export default function CalendarWidget({
       <WidgetTemplate
         icon={Calendar}
         title={renderTitle()}
-        onSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+        onSettings={!isGlobalSettingsMode ? () => setIsSettingsOpen(!isSettingsOpen) : undefined}
         settingsPanel={renderSettingsPanel()}
       >
         <div className="text-center space-y-4">
@@ -598,7 +593,7 @@ export default function CalendarWidget({
       <WidgetTemplate
         icon={Calendar}
         title={renderTitle()}
-        onSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+        onSettings={!isGlobalSettingsMode ? () => setIsSettingsOpen(!isSettingsOpen) : undefined}
         settingsPanel={renderSettingsPanel()}
       >
         <div className="text-center">
@@ -626,7 +621,7 @@ export default function CalendarWidget({
       <WidgetTemplate
         icon={Calendar}
         title={renderTitle()}
-        onSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+        onSettings={!isGlobalSettingsMode ? () => setIsSettingsOpen(!isSettingsOpen) : undefined}
         settingsPanel={renderSettingsPanel()}
         footer={calendarData ? `最終更新: ${new Date(calendarData.lastUpdated).toLocaleTimeString('ja-JP', { 
           hour: '2-digit', 

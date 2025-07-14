@@ -6,7 +6,7 @@ import { WidgetTemplate } from './WidgetTemplate'
 import { WidgetSettingsModal } from '../WidgetSettingsModal'
 import { useWidgetStore } from '../../stores/widgetStore'
 import { useSettingsStore } from '../../stores/settingsStore'
-import { useAutoFontSize } from '../../utils/autoFontSize'
+import { useMultiAutoFontSize } from '../../utils/autoFontSize'
 
 interface ClockWidgetProps {
   showSeconds?: boolean
@@ -15,6 +15,7 @@ interface ClockWidgetProps {
   fontSize?: number
   autoFontSize?: boolean
   widgetId?: string
+  isGlobalSettingsMode?: boolean
 }
 
 export default function ClockWidget({ 
@@ -23,7 +24,8 @@ export default function ClockWidget({
   showDate = true,
   fontSize: propFontSize,
   autoFontSize: propAutoFontSize,
-  widgetId
+  widgetId,
+  isGlobalSettingsMode = false
 }: ClockWidgetProps) {
   const [time, setTime] = useState(new Date())
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -36,15 +38,17 @@ export default function ClockWidget({
   const uiStyle = settings?.appearance?.uiStyle || 'liquid-glass'
   const isLiquidGlass = uiStyle === 'liquid-glass'
   
+  // 手動フォントサイズ設定（デフォルト値付き）
+  const manualFontSize = widget?.config?.manualFontSize ?? currentFontSize
+
   // 自動文字サイズ調整のフック
-  const [containerRef, autoFontSize] = useAutoFontSize(
+  const [containerRef, fontSizes] = useMultiAutoFontSize(
     isAutoFontSizeEnabled,
-    currentFontSize,
-    'primary'
+    manualFontSize
   )
   
   // 最終的な文字サイズ
-  const finalFontSize = isAutoFontSizeEnabled ? autoFontSize : currentFontSize
+  const finalFontSize = isAutoFontSizeEnabled ? fontSizes.primary : manualFontSize
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -60,7 +64,7 @@ export default function ClockWidget({
 
   const handleFontSizeChange = (newFontSize: number) => {
     if (widgetId) {
-      updateWidget(widgetId, { ...widget?.config, fontSize: newFontSize })
+      updateWidget(widgetId, { ...widget?.config, manualFontSize: newFontSize })
     }
   }
   
@@ -119,10 +123,10 @@ export default function ClockWidget({
           <div className="relative">
             <input
               type="range"
-              min="32"
-              max="128"
+              min="14"
+              max="96"
               step="4"
-              value={currentFontSize}
+              value={manualFontSize}
               onChange={(e) => handleFontSizeChange(parseInt(e.target.value))}
               className={sliderClass}
               disabled={isAutoFontSizeEnabled}
@@ -171,7 +175,7 @@ export default function ClockWidget({
       <WidgetTemplate
         icon={Clock}
         title="時刻"
-        onSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+        onSettings={!isGlobalSettingsMode ? () => setIsSettingsOpen(!isSettingsOpen) : undefined}
       >
         <div ref={containerRef} className="text-center h-full flex flex-col justify-center">
           <div 
@@ -184,7 +188,7 @@ export default function ClockWidget({
           {showDate && (
             <div 
               className={`font-medium ${isLiquidGlass ? 'text-white/80' : 'material-text-secondary'}`}
-              style={{ fontSize: `${Math.round(finalFontSize * 0.3)}px` }}
+              style={{ fontSize: `${isAutoFontSizeEnabled ? fontSizes.secondary : Math.round(finalFontSize * 0.3)}px` }}
             >
               {format(time, 'yyyy年M月d日 (E)', { locale: ja })}
             </div>
@@ -192,7 +196,7 @@ export default function ClockWidget({
         </div>
       </WidgetTemplate>
       
-      {isSettingsOpen && (
+      {!isGlobalSettingsMode && isSettingsOpen && (
         <WidgetSettingsModal
           title="時刻表示設定"
           icon={Clock}
