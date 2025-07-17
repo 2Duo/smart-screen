@@ -3,6 +3,7 @@ import type { WidgetType, Widget } from '../../../../shared/types'
 import ClockWidget from './ClockWidget'
 import WeatherWidget from './WeatherWidget'
 import CalendarWidget from './CalendarWidget'
+import CalendarProWidget from './CalendarProWidget'
 import { WidgetTemplate } from './WidgetTemplate'
 import { Newspaper, Image, Settings } from 'lucide-react'
 
@@ -64,6 +65,7 @@ const widgetComponents: Record<WidgetType, React.ComponentType<any>> = {
   clock: ClockWidget,
   weather: WeatherWidget,
   calendar: CalendarWidget,
+  'calendar-beta': CalendarProWidget,
   // TODO: Implement these widgets following the WidgetTemplate pattern
   news: () => (
     <WidgetTemplate icon={Newspaper} title="ニュース">

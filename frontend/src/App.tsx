@@ -82,34 +82,66 @@ function App() {
   // Global settings mode - when true, individual widget settings are disabled
   const isGlobalSettingsMode = showSettingsPanel
   
-  // Double-tap gesture state for edit controls
-  const [lastTapTime, setLastTapTime] = useState<number>(0)
-  const [lastTapX, setLastTapX] = useState<number>(0)
-  const [lastTapY, setLastTapY] = useState<number>(0)
+  // Touch gesture state for edit controls
+  const [swipeStartX, setSwipeStartX] = useState<number | null>(null)
+  const [swipeStartY, setSwipeStartY] = useState<number | null>(null)
+  const [longPressTimer, setLongPressTimer] = useState<number | null>(null)
   
-  // Touch event handlers for swipe gesture
+  // Touch event handlers for long press gesture on top-right area
   const handleTouchStart = (e: React.TouchEvent) => {
     // Check if touch is on an interactive element (button, etc.)
     if (e.target instanceof HTMLElement) {
       const target = e.target.closest('button, a, input, select, textarea, [role="button"], [data-grid-ignore]')
       if (target) {
-        return // Don't process swipe for interactive elements
+        return // Don't process touch for interactive elements
       }
     }
     
     const touch = e.touches[0]
-    setSwipeStartX(touch.clientX)
-    setSwipeStartY(touch.clientY)
+    const x = touch.clientX
+    const y = touch.clientY
+    
+    // Check if touch is in top-right area (wider touch area: 200px from right, 150px from top)
+    const isTopRightArea = x > window.innerWidth - 200 && y < 150
+    
+    if (isTopRightArea) {
+      // Start long press timer
+      const timerId = window.setTimeout(() => {
+        setShowEditControls(true)
+        // Clear any existing timeout
+        if (editControlsTimeout) {
+          clearTimeout(editControlsTimeout)
+          setEditControlsTimeout(null)
+        }
+        // Set auto-hide timeout only if no menus are open
+        if (!showWidgetPanel && !showSettingsPanel) {
+          const autoHideId = setTimeout(() => {
+            setShowEditControls(false)
+          }, 5000)
+          setEditControlsTimeout(autoHideId)
+        }
+      }, 500) // 500ms long press duration
+      setLongPressTimer(timerId)
+    }
+    
+    setSwipeStartX(x)
+    setSwipeStartY(y)
   }
   
   const handleTouchEnd = (e: React.TouchEvent) => {
+    // Cancel long press timer if it exists
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      setLongPressTimer(null)
+    }
+    
     if (swipeStartX === null || swipeStartY === null) return
     
     // Check if touch ended on an interactive element
     if (e.target instanceof HTMLElement) {
       const target = e.target.closest('button, a, input, select, textarea, [role="button"], [data-grid-ignore]')
       if (target) {
-        // Reset swipe state but don't process as swipe
+        // Reset touch state but don't process as gesture
         setSwipeStartX(null)
         setSwipeStartY(null)
         return
@@ -120,7 +152,7 @@ function App() {
     const deltaX = touch.clientX - swipeStartX
     const deltaY = touch.clientY - swipeStartY
     
-    // Check if it's a swipe from right edge (within 50px from right)
+    // Keep swipe gesture for right edge (within 50px from right) as fallback
     const isFromRightEdge = swipeStartX > window.innerWidth - 50
     
     // Check if it's a leftward swipe (at least 100px) and not too vertical

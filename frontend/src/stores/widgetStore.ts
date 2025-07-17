@@ -62,6 +62,28 @@ const defaultWidgetConfigs: Record<WidgetType, WidgetConfig> = {
     showWeekNumbers: false,
     firstDayOfWeek: 0,
   },
+  'calendar-beta': {
+    maxEvents: 5,
+    daysPeriod: 7,
+    upcomingCount: 3,
+    layoutConfig: {
+      primary: 'nextEventTitle',
+      secondary: 'nextEventTime',
+      tertiary: 'nextEventLocation',
+      details: ['upcomingEvents', 'todayEvents'],
+    },
+    displayOptions: {
+      nextEventTitle: true,
+      nextEventTime: true,
+      nextEventLocation: true,
+      secondNextEventTitle: false,
+      secondNextEventTime: false,
+      upcomingEvents: true,
+      todayEvents: true,
+      tomorrowEvents: true,
+      eventCount: true,
+    },
+  },
   news: {
     sources: ['general'],
     maxItems: 5,
@@ -93,6 +115,13 @@ export const widgetMetadata = {
   calendar: {
     name: 'カレンダー',
     description: '月間カレンダーを表示',
+    icon: 'Calendar',
+    defaultSize: { w: 4, h: 4 },
+    minSize: { w: 3, h: 3 },
+  },
+  'calendar-beta': {
+    name: 'カレンダー (ベータ)',
+    description: 'Googleカレンダーの予定を表示（高機能版）',
     icon: 'Calendar',
     defaultSize: { w: 4, h: 4 },
     minSize: { w: 3, h: 3 },

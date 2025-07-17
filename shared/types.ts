@@ -6,7 +6,7 @@ export interface Widget {
   config: WidgetConfig
 }
 
-export type WidgetType = 'clock' | 'weather' | 'calendar' | 'news' | 'photo' | 'custom'
+export type WidgetType = 'clock' | 'weather' | 'calendar' | 'calendar-beta' | 'news' | 'photo' | 'custom'
 
 export interface WidgetConfig {
   refreshInterval?: number
