@@ -2,6 +2,7 @@ import React from 'react'
 import { Clock, Cloud, Calendar, Newspaper, Image, Settings, X, Sparkles } from 'lucide-react'
 import { useWidgetStore, widgetMetadata } from '../stores/widgetStore'
 import { useLayoutStore } from '../stores/layoutStore'
+import { showSuccessNotification, showErrorNotification, showWarningNotification } from '../stores/notificationStore'
 import type { WidgetType } from '../../../shared/types'
 
 const iconMap = {
@@ -18,13 +19,34 @@ interface WidgetSelectionPanelProps {
 }
 
 export const WidgetSelectionPanel: React.FC<WidgetSelectionPanelProps> = ({ onClose }) => {
-  const { addWidget } = useWidgetStore()
+  const { addWidget, removeWidget } = useWidgetStore()
   const { addWidgetToLayout } = useLayoutStore()
   
   const handleAddWidget = (type: WidgetType) => {
     const widgetId = addWidget(type)
-    addWidgetToLayout(widgetId, type)
-    onClose()
+    const result = addWidgetToLayout(widgetId, type)
+    
+    if (result.success) {
+      if (result.message?.includes('調整しました')) {
+        showWarningNotification(
+          'ウィジェットを追加しました',
+          result.message
+        )
+      } else {
+        showSuccessNotification(
+          'ウィジェットを追加しました',
+          widgetMetadata[type].name + 'を画面に追加しました'
+        )
+      }
+      onClose()
+    } else {
+      showErrorNotification(
+        'ウィジェットを追加できませんでした',
+        result.message || '空きスペースが不足しています'
+      )
+      // Widget was created but not added to layout, so remove it
+      removeWidget(widgetId)
+    }
   }
   
   return (

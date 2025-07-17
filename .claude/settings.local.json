@@ -28,7 +28,10 @@
       "Bash(git stash:*)",
       "WebFetch(domain:developers.home.google.com)",
       "WebFetch(domain:ifttt.com)",
-      "WebFetch(domain:developer.tuya.com)"
+      "WebFetch(domain:developer.tuya.com)",
+      "Bash(cat:*)",
+      "Bash(git filter-branch:*)",
+      "Bash(git rm:*)"
     ],
     "deny": []
   }

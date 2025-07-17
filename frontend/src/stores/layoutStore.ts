@@ -2,12 +2,20 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Layout, LayoutItem, WidgetType } from '../../../shared/types'
 import { widgetMetadata } from './widgetStore'
+import { findBestWidgetPosition } from '../utils/gridUtils'
+
+export interface WidgetPlacementResult {
+  success: boolean
+  message?: string
+  position?: { x: number; y: number; w: number; h: number }
+  suggestions?: Array<{ x: number; y: number; w: number; h: number }>
+}
 
 interface LayoutState {
   layout: Layout
   updateLayout: (newLayout: Layout) => void
   updateLayoutItem: (item: LayoutItem) => void
-  addWidgetToLayout: (widgetId: string, widgetType: WidgetType) => void
+  addWidgetToLayout: (widgetId: string, widgetType: WidgetType) => WidgetPlacementResult
   removeWidgetFromLayout: (widgetId: string) => void
   resetLayout: () => void
 }
@@ -53,25 +61,44 @@ export const useLayoutStore = create<LayoutState>()(
         }
       },
       
-      addWidgetToLayout: (widgetId: string, widgetType: WidgetType) => {
+      addWidgetToLayout: (widgetId: string, widgetType: WidgetType): WidgetPlacementResult => {
         try {
           const metadata = widgetMetadata[widgetType]
           if (!metadata) {
             console.error(`Unknown widget type: ${widgetType}`)
-            return
+            return {
+              success: false,
+              message: `未知のウィジェットタイプです: ${widgetType}`
+            }
           }
           
           const currentLayout = get().layout
           
-          // Find a good position for the new widget
-          const maxY = Math.max(...currentLayout.map(item => item.y + item.h), 0)
+          // Use the new grid utility to find the best position
+          const placementResult = findBestWidgetPosition(
+            currentLayout,
+            metadata.defaultSize.w,
+            metadata.defaultSize.h,
+            metadata.minSize.w,
+            metadata.minSize.h
+          )
+          
+          if (!placementResult.success || !placementResult.position) {
+            return {
+              success: false,
+              message: placementResult.error || '適切な配置場所が見つかりませんでした',
+              suggestions: placementResult.suggestions
+            }
+          }
+          
+          const { x, y, w, h } = placementResult.position
           
           const newLayoutItem: LayoutItem = {
             i: widgetId,
-            x: 0,
-            y: maxY,
-            w: metadata.defaultSize.w,
-            h: metadata.defaultSize.h,
+            x,
+            y,
+            w,
+            h,
             minW: metadata.minSize.w,
             minH: metadata.minSize.h,
           }
@@ -79,8 +106,19 @@ export const useLayoutStore = create<LayoutState>()(
           set((state) => ({
             layout: [...state.layout, newLayoutItem],
           }))
+          
+          return {
+            success: true,
+            message: placementResult.error || `ウィジェットを (${x}, ${y}) に配置しました`,
+            position: { x, y, w, h },
+            suggestions: placementResult.suggestions
+          }
         } catch (error) {
           console.error('Failed to add widget to layout:', error)
+          return {
+            success: false,
+            message: `ウィジェットの配置中にエラーが発生しました: ${error}`
+          }
         }
       },
       

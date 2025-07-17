@@ -38,6 +38,39 @@
   cursor: se-resize;
 }
 
+/* Tablet-optimized resize handle */
+@media (hover: none) and (pointer: coarse) {
+  .react-grid-item > .react-resizable-handle {
+    width: 40px;
+    height: 40px;
+    background-size: 16px 16px;
+    background-position: center;
+    padding: 0;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
+  }
+  
+  .react-grid-item > .react-resizable-handle:active {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  .react-grid-item > .react-resizable-handle::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    background: transparent;
+    border-radius: 12px;
+  }
+}
+
 /* Mobile/Android specific grid fixes */
 @media (hover: none) and (pointer: coarse) {
   .react-grid-item:not(.react-grid-placeholder) {
@@ -112,4 +145,15 @@
   border: 2px solid #ffffff;
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Ensure delete buttons are above grid layout and clickable */
+.widget-container button[data-grid-ignore="true"] {
+  pointer-events: auto !important;
+  z-index: 100 !important;
+  position: relative;
+}
+
+.widget-container button[data-grid-ignore="true"] * {
+  pointer-events: none !important;
 }

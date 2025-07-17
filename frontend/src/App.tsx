@@ -9,6 +9,7 @@ import { WidgetRenderer } from './components/widgets/WidgetRegistry'
 import { WidgetSelectionPanel } from './components/WidgetSelectionPanel'
 import { SettingsPanel } from './components/SettingsPanel'
 import { PWAControls } from './components/PWAControls'
+import { NotificationContainer } from './components/NotificationToast'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 import './styles/themes.css'
@@ -81,12 +82,21 @@ function App() {
   // Global settings mode - when true, individual widget settings are disabled
   const isGlobalSettingsMode = showSettingsPanel
   
-  // Swipe gesture state for edit controls
-  const [swipeStartX, setSwipeStartX] = useState<number | null>(null)
-  const [swipeStartY, setSwipeStartY] = useState<number | null>(null)
+  // Double-tap gesture state for edit controls
+  const [lastTapTime, setLastTapTime] = useState<number>(0)
+  const [lastTapX, setLastTapX] = useState<number>(0)
+  const [lastTapY, setLastTapY] = useState<number>(0)
   
   // Touch event handlers for swipe gesture
   const handleTouchStart = (e: React.TouchEvent) => {
+    // Check if touch is on an interactive element (button, etc.)
+    if (e.target instanceof HTMLElement) {
+      const target = e.target.closest('button, a, input, select, textarea, [role="button"], [data-grid-ignore]')
+      if (target) {
+        return // Don't process swipe for interactive elements
+      }
+    }
+    
     const touch = e.touches[0]
     setSwipeStartX(touch.clientX)
     setSwipeStartY(touch.clientY)
@@ -94,6 +104,17 @@ function App() {
   
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (swipeStartX === null || swipeStartY === null) return
+    
+    // Check if touch ended on an interactive element
+    if (e.target instanceof HTMLElement) {
+      const target = e.target.closest('button, a, input, select, textarea, [role="button"], [data-grid-ignore]')
+      if (target) {
+        // Reset swipe state but don't process as swipe
+        setSwipeStartX(null)
+        setSwipeStartY(null)
+        return
+      }
+    }
     
     const touch = e.changedTouches[0]
     const deltaX = touch.clientX - swipeStartX
@@ -298,6 +319,9 @@ function App() {
         className="fixed inset-0 bg-black pointer-events-none"
         style={{ opacity: overlayOpacity }}
       />
+      
+      {/* Notification Container */}
+      <NotificationContainer />
       {/* Debug Panel */}
       {import.meta.env.VITE_DEBUG_MODE === 'true' && (
         <div className="absolute top-8 left-8 z-40">
@@ -482,10 +506,20 @@ function App() {
                       console.log('Deleting widget:', widget.id)
                       handleRemoveWidget(widget.id)
                     }}
-                    className="absolute top-2 right-2 z-40 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-2xl transition-all duration-300 hover:scale-110 group"
+                    onMouseDown={(e) => {
+                      e.stopPropagation()
+                      e.preventDefault()
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation()
+                      e.preventDefault()
+                    }}
+                    className="absolute top-2 right-2 z-50 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-2xl transition-all duration-300 hover:scale-110 group pointer-events-auto"
                     title={`${widget.type}ウィジェットを削除`}
+                    style={{ pointerEvents: 'auto' }}
+                    data-grid-ignore="true"
                   >
-                    <X size={16} className="group-hover:rotate-90 transition-transform duration-300" />
+                    <X size={16} className="group-hover:rotate-90 transition-transform duration-300 pointer-events-none" />
                   </button>
                 )}
               </div>
