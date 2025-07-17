@@ -5,6 +5,8 @@ import type { CalendarData, CalendarEvent, APIResponse } from '../../../../share
 import { useWidgetStore } from '../../stores/widgetStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { WidgetTemplate } from './WidgetTemplate'
+// Layout editing will be implemented in future iterations
+import { useMultiAutoFontSize } from '../../utils/autoFontSize'
 import { format, isToday, isTomorrow, parseISO, differenceInMinutes } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
@@ -45,8 +47,24 @@ export default function CalendarWidget({
     eventCount: true,
   }
   
+  // Font size management
+  const isAutoFontSizeEnabled = widget?.config?.autoFontSize ?? settings?.appearance?.autoFontSize ?? false
+  const [containerRef, fontSizes] = useMultiAutoFontSize(isAutoFontSizeEnabled, widget?.config?.fontSize)
+  
+  const manualFontSizes = {
+    primary: widget?.config?.manualFontSizes?.primary ?? 48,
+    secondary: widget?.config?.manualFontSizes?.secondary ?? 32,
+    tertiary: widget?.config?.manualFontSizes?.tertiary ?? 24,
+    details: widget?.config?.manualFontSizes?.details ?? 16
+  }
+  
+  const effectiveFontSizes = isAutoFontSizeEnabled ? fontSizes : manualFontSizes
+  
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'auth' | 'display' | 'layout'>('auth')
+  const [activeTab, setActiveTab] = useState<'auth' | 'display' | 'font'>('auth')
+  // Layout editing state (will be implemented in future iterations)
+  // const [selectedLayoutArea, setSelectedLayoutArea] = useState<string | null>(null)
+  // const [isLayoutEditing, setIsLayoutEditing] = useState(false)
 
   // Calendar status query
   const { data: calendarStatus } = useQuery({
@@ -102,11 +120,11 @@ export default function CalendarWidget({
   const handleAuthenticate = async () => {
     try {
       // Dynamic API base URL - use current host for LAN access
-      const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 
-        (window.location.hostname === 'localhost' 
-          ? `${protocol}://localhost:3001` 
-          : `${protocol}://${window.location.hostname}:3001`)
+      // const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
+      // const baseUrl = import.meta.env.VITE_API_BASE_URL || 
+      //   (window.location.hostname === 'localhost' 
+      //     ? `${protocol}://localhost:3001` 
+      //     : `${protocol}://${window.location.hostname}:3001`)
       const response = await fetch('/api/calendar/auth')
       const result: APIResponse<{ authUrl: string }> = await response.json()
       
@@ -206,6 +224,27 @@ export default function CalendarWidget({
       updateWidget(widgetId, { ...widget?.config, daysPeriod: newDaysPeriod })
     }
   }
+
+  const handleAutoFontSizeToggle = (enabled: boolean) => {
+    if (widgetId) {
+      updateWidget(widgetId, { ...widget?.config, autoFontSize: enabled })
+    }
+  }
+
+  const handleManualFontSizeChange = (type: 'primary' | 'secondary' | 'tertiary' | 'details', size: number) => {
+    if (widgetId) {
+      const newManualFontSizes = { ...manualFontSizes, [type]: size }
+      updateWidget(widgetId, { ...widget?.config, manualFontSizes: newManualFontSizes })
+    }
+  }
+
+  // Layout config change handler (will be implemented in future iterations)
+  // const handleLayoutConfigChange = (area: string, value: string) => {
+  //   if (widgetId) {
+  //     const newLayoutConfig = { ...currentLayoutConfig, [area]: value }
+  //     updateWidget(widgetId, { ...widget?.config, layoutConfig: newLayoutConfig })
+  //   }
+  // }
 
   // Helper functions
   const getNextEvent = (events: CalendarEvent[]): CalendarEvent | null => {
@@ -341,6 +380,20 @@ export default function CalendarWidget({
           >
             表示設定
           </button>
+          <button
+            onClick={() => setActiveTab('font')}
+            className={`flex-1 px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ${
+              activeTab === 'font'
+                ? isLiquidGlass
+                  ? 'bg-gradient-to-r from-blue-400/30 to-purple-400/30 text-white border border-blue-300/30 shadow-lg'
+                  : 'bg-blue-100 border border-blue-200 text-blue-700 shadow-md'
+                : isLiquidGlass
+                  ? 'text-white/60 hover:text-white/80 hover:bg-white/10'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+            }`}
+          >
+            フォント
+          </button>
         </div>
 
         {/* Scrollable Content Area */}
@@ -462,6 +515,113 @@ export default function CalendarWidget({
                 </button>
               </div>
             ))}
+          </div>
+        )}
+
+        {activeTab === 'font' && (
+          <div className="space-y-4">
+            {/* Auto Font Size Toggle */}
+            <div className="flex items-center justify-between p-3 bg-gradient-to-r from-white/5 to-white/10 rounded-xl border border-white/10 backdrop-blur-xl">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-white/80 font-medium">文字サイズ自動調整</span>
+              </div>
+              <button
+                onClick={() => handleAutoFontSizeToggle(!isAutoFontSizeEnabled)}
+                className={`w-12 h-6 rounded-full transition-all duration-300 relative ${
+                  isAutoFontSizeEnabled
+                    ? 'bg-gradient-to-r from-blue-400 to-purple-400 shadow-lg'
+                    : 'bg-white/20'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all duration-300 shadow-lg ${
+                    isAutoFontSizeEnabled
+                      ? 'translate-x-6'
+                      : 'translate-x-0.5'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Manual Font Size Controls (shown when auto is disabled) */}
+            {!isAutoFontSizeEnabled && (
+              <div className="space-y-4">
+                <div className="text-sm text-white/60 font-medium">
+                  手動フォントサイズ調整:
+                </div>
+                
+                {/* Primary Font Size */}
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-white/80">
+                    メインテキスト: {manualFontSizes.primary}px
+                  </div>
+                  <input
+                    type="range"
+                    min="16"
+                    max="128"
+                    step="1"
+                    value={manualFontSizes.primary}
+                    onChange={(e) => handleManualFontSizeChange('primary', parseInt(e.target.value))}
+                    className="w-full h-2 bg-gradient-to-r from-white/10 to-white/20 rounded-xl appearance-none cursor-pointer"
+                  />
+                </div>
+
+                {/* Secondary Font Size */}
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-white/80">
+                    セカンダリテキスト: {manualFontSizes.secondary}px
+                  </div>
+                  <input
+                    type="range"
+                    min="12"
+                    max="48"
+                    step="1"
+                    value={manualFontSizes.secondary}
+                    onChange={(e) => handleManualFontSizeChange('secondary', parseInt(e.target.value))}
+                    className="w-full h-2 bg-gradient-to-r from-white/10 to-white/20 rounded-xl appearance-none cursor-pointer"
+                  />
+                </div>
+
+                {/* Tertiary Font Size */}
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-white/80">
+                    ターシャリテキスト: {manualFontSizes.tertiary}px
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="36"
+                    step="1"
+                    value={manualFontSizes.tertiary}
+                    onChange={(e) => handleManualFontSizeChange('tertiary', parseInt(e.target.value))}
+                    className="w-full h-2 bg-gradient-to-r from-white/10 to-white/20 rounded-xl appearance-none cursor-pointer"
+                  />
+                </div>
+
+                {/* Details Font Size */}
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-white/80">
+                    詳細テキスト: {manualFontSizes.details}px
+                  </div>
+                  <input
+                    type="range"
+                    min="8"
+                    max="24"
+                    step="1"
+                    value={manualFontSizes.details}
+                    onChange={(e) => handleManualFontSizeChange('details', parseInt(e.target.value))}
+                    className="w-full h-2 bg-gradient-to-r from-white/10 to-white/20 rounded-xl appearance-none cursor-pointer"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Layout Editing Button - Will be implemented in future iterations */}
+            <div className="mt-6">
+              <div className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-500/20 text-white/50 rounded-xl text-sm font-medium cursor-not-allowed">
+                レイアウト編集 (将来実装予定)
+              </div>
+            </div>
           </div>
         )}
         </div>
@@ -664,7 +824,7 @@ export default function CalendarWidget({
         minute: '2-digit' 
       })}`}
     >
-      <div className="space-y-4">
+      <div ref={containerRef} className="space-y-4">
         {/* Dynamic Layout - Primary Display */}
         {currentLayoutConfig.primary && currentLayoutConfig.primary !== 'none' && currentDisplayOptions[currentLayoutConfig.primary] && (
           <div className="text-center">
@@ -672,27 +832,27 @@ export default function CalendarWidget({
               switch (currentLayoutConfig.primary) {
                 case 'nextEventTitle':
                   return nextEvent ? (
-                    <div className="text-4xl font-bold leading-tight">{nextEvent.title}</div>
+                    <div className="font-bold leading-tight" style={{ fontSize: `${effectiveFontSizes.primary}px` }}>{nextEvent.title}</div>
                   ) : (
-                    <div className="text-4xl font-bold leading-tight text-white/60">予定なし</div>
+                    <div className="font-bold leading-tight text-white/60" style={{ fontSize: `${effectiveFontSizes.primary}px` }}>予定なし</div>
                   )
                 case 'nextEventTime':
                   return nextEvent ? (
-                    <div className="text-4xl font-bold leading-tight">
+                    <div className="font-bold leading-tight" style={{ fontSize: `${effectiveFontSizes.primary}px` }}>
                       {formatEventDate(nextEvent)} {formatEventTime(nextEvent)}
                     </div>
                   ) : (
-                    <div className="text-4xl font-bold leading-tight text-white/60">--:--</div>
+                    <div className="font-bold leading-tight text-white/60" style={{ fontSize: `${effectiveFontSizes.primary}px` }}>--:--</div>
                   )
                 case 'nextEventLocation':
                   return nextEvent?.location ? (
-                    <div className="text-4xl font-bold leading-tight">{nextEvent.location}</div>
+                    <div className="font-bold leading-tight" style={{ fontSize: `${effectiveFontSizes.primary}px` }}>{nextEvent.location}</div>
                   ) : (
-                    <div className="text-4xl font-bold leading-tight text-white/60">場所未設定</div>
+                    <div className="font-bold leading-tight text-white/60" style={{ fontSize: `${effectiveFontSizes.primary}px` }}>場所未設定</div>
                   )
                 case 'eventCount':
                   return (
-                    <div className="text-4xl font-bold leading-tight">
+                    <div className="font-bold leading-tight" style={{ fontSize: `${effectiveFontSizes.primary}px` }}>
                       {calendarData.events.length}件の予定
                     </div>
                   )
@@ -710,27 +870,27 @@ export default function CalendarWidget({
               switch (currentLayoutConfig.secondary) {
                 case 'nextEventTitle':
                   return nextEvent ? (
-                    <div className="text-xl text-white/80 font-medium">{nextEvent.title}</div>
+                    <div className="text-white/80 font-medium" style={{ fontSize: `${effectiveFontSizes.secondary}px` }}>{nextEvent.title}</div>
                   ) : (
-                    <div className="text-xl text-white/60 font-medium">予定なし</div>
+                    <div className="text-white/60 font-medium" style={{ fontSize: `${effectiveFontSizes.secondary}px` }}>予定なし</div>
                   )
                 case 'nextEventTime':
                   return nextEvent ? (
-                    <div className="text-xl text-white/80 font-medium">
+                    <div className="text-white/80 font-medium" style={{ fontSize: `${effectiveFontSizes.secondary}px` }}>
                       {formatEventDate(nextEvent)} {formatEventTime(nextEvent)}
                     </div>
                   ) : (
-                    <div className="text-xl text-white/60 font-medium">--:--</div>
+                    <div className="text-white/60 font-medium" style={{ fontSize: `${effectiveFontSizes.secondary}px` }}>--:--</div>
                   )
                 case 'nextEventLocation':
                   return nextEvent?.location ? (
-                    <div className="text-xl text-white/80 font-medium">{nextEvent.location}</div>
+                    <div className="text-white/80 font-medium" style={{ fontSize: `${effectiveFontSizes.secondary}px` }}>{nextEvent.location}</div>
                   ) : (
-                    <div className="text-xl text-white/60 font-medium">場所未設定</div>
+                    <div className="text-white/60 font-medium" style={{ fontSize: `${effectiveFontSizes.secondary}px` }}>場所未設定</div>
                   )
                 case 'eventCount':
                   return (
-                    <div className="text-xl text-white/80 font-medium">
+                    <div className="text-white/80 font-medium" style={{ fontSize: `${effectiveFontSizes.secondary}px` }}>
                       {calendarData.events.length}件の予定
                     </div>
                   )
@@ -748,27 +908,27 @@ export default function CalendarWidget({
               switch (currentLayoutConfig.tertiary) {
                 case 'nextEventTitle':
                   return nextEvent ? (
-                    <div className="text-lg text-white/60 font-medium">{nextEvent.title}</div>
+                    <div className="text-white/60 font-medium" style={{ fontSize: `${effectiveFontSizes.tertiary}px` }}>{nextEvent.title}</div>
                   ) : (
-                    <div className="text-lg text-white/60 font-medium">予定なし</div>
+                    <div className="text-white/60 font-medium" style={{ fontSize: `${effectiveFontSizes.tertiary}px` }}>予定なし</div>
                   )
                 case 'nextEventTime':
                   return nextEvent ? (
-                    <div className="text-lg text-white/60 font-medium">
+                    <div className="text-white/60 font-medium" style={{ fontSize: `${effectiveFontSizes.tertiary}px` }}>
                       {getTimeUntilEvent(nextEvent)} - {formatEventTime(nextEvent)}
                     </div>
                   ) : (
-                    <div className="text-lg text-white/60 font-medium">--:--</div>
+                    <div className="text-white/60 font-medium" style={{ fontSize: `${effectiveFontSizes.tertiary}px` }}>--:--</div>
                   )
                 case 'nextEventLocation':
                   return nextEvent?.location ? (
-                    <div className="text-lg text-white/60 font-medium">{nextEvent.location}</div>
+                    <div className="text-white/60 font-medium" style={{ fontSize: `${effectiveFontSizes.tertiary}px` }}>{nextEvent.location}</div>
                   ) : (
-                    <div className="text-lg text-white/60 font-medium">場所未設定</div>
+                    <div className="text-white/60 font-medium" style={{ fontSize: `${effectiveFontSizes.tertiary}px` }}>場所未設定</div>
                   )
                 case 'eventCount':
                   return (
-                    <div className="text-lg text-white/60 font-medium">
+                    <div className="text-white/60 font-medium" style={{ fontSize: `${effectiveFontSizes.tertiary}px` }}>
                       {currentDaysPeriod}日間で{calendarData.events.length}件
                     </div>
                   )
@@ -790,13 +950,13 @@ export default function CalendarWidget({
                 case 'todayEvents':
                   return todayEvents.length > 0 ? (
                     <div key={itemKey} className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-white/80 font-medium">
+                      <div className="flex items-center gap-2 text-white/80 font-medium" style={{ fontSize: `${effectiveFontSizes.details}px` }}>
                         <Calendar size={14} />
                         今日の予定 ({todayEvents.length}件)
                       </div>
                       <div className="space-y-1">
                         {todayEvents.slice(0, currentMaxEvents).map((event) => (
-                          <div key={event.id} className="flex items-center gap-2 text-sm text-white/70 pl-4">
+                          <div key={event.id} className="flex items-center gap-2 text-white/70 pl-4" style={{ fontSize: `${effectiveFontSizes.details}px` }}>
                             <Clock size={12} className="text-white/50" />
                             <span>{formatEventTime(event)}</span>
                             <span className="flex-1 truncate">{event.title}</span>
@@ -808,13 +968,13 @@ export default function CalendarWidget({
                 case 'tomorrowEvents':
                   return tomorrowEvents.length > 0 ? (
                     <div key={itemKey} className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-white/80 font-medium">
+                      <div className="flex items-center gap-2 text-white/80 font-medium" style={{ fontSize: `${effectiveFontSizes.details}px` }}>
                         <Calendar size={14} />
                         明日の予定 ({tomorrowEvents.length}件)
                       </div>
                       <div className="space-y-1">
                         {tomorrowEvents.slice(0, currentMaxEvents).map((event) => (
-                          <div key={event.id} className="flex items-center gap-2 text-sm text-white/70 pl-4">
+                          <div key={event.id} className="flex items-center gap-2 text-white/70 pl-4" style={{ fontSize: `${effectiveFontSizes.details}px` }}>
                             <Clock size={12} className="text-white/50" />
                             <span>{formatEventTime(event)}</span>
                             <span className="flex-1 truncate">{event.title}</span>
@@ -825,7 +985,7 @@ export default function CalendarWidget({
                   ) : null
                 case 'eventCount':
                   return (
-                    <div key={itemKey} className="flex items-center gap-2 text-sm text-white/70">
+                    <div key={itemKey} className="flex items-center gap-2 text-white/70" style={{ fontSize: `${effectiveFontSizes.details}px` }}>
                       <Calendar size={14} className="text-white/50" />
                       <span>{currentDaysPeriod}日間で{calendarData.events.length}件の予定</span>
                     </div>

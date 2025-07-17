@@ -16,7 +16,7 @@ const secureAxios: AxiosInstance = axios.create({
 
 // Request interceptor for URL validation and request sanitization
 secureAxios.interceptors.request.use(
-  (config: AxiosRequestConfig) => {
+  (config: any) => {
     // Validate URL
     if (config.url && !URLValidator.isAllowedURL(config.url)) {
       const error = new Error(`Blocked request to unauthorized URL: ${config.url}`)
@@ -161,7 +161,7 @@ export class SecureHttpClient {
    * Add request interceptor
    */
   addRequestInterceptor(
-    onFulfilled?: (value: AxiosRequestConfig) => AxiosRequestConfig | Promise<AxiosRequestConfig>,
+    onFulfilled?: (value: any) => any | Promise<any>,
     onRejected?: (error: any) => any
   ): number {
     return this.axios.interceptors.request.use(onFulfilled, onRejected)

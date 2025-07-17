@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Responsive, WidthProvider } from 'react-grid-layout'
-import { Edit3, Plus, Check, Settings } from 'lucide-react'
+import { Edit3, Plus, Check, Settings, X, RefreshCcw } from 'lucide-react'
 import { useLayoutStore } from './stores/layoutStore'
 import { useSocketStore } from './stores/socketStore'
 import { useWidgetStore } from './stores/widgetStore'
@@ -18,7 +18,7 @@ const ResponsiveGridLayout = WidthProvider(Responsive)
 function App() {
   console.log('App component initializing...')
   
-  const { layout, updateLayout, removeWidgetFromLayout } = useLayoutStore()
+  const { layout, updateLayout, removeWidgetFromLayout, resetLayout } = useLayoutStore()
   console.log('Layout store loaded:', layout?.length || 0, 'items')
   
   const { connect, disconnect } = useSocketStore()
@@ -74,6 +74,56 @@ function App() {
   
   const [showWidgetPanel, setShowWidgetPanel] = useState(false)
   const [showSettingsPanel, setShowSettingsPanel] = useState(false)
+  const [deletingWidgets, setDeletingWidgets] = useState<Set<string>>(new Set())
+  const [showEditControls, setShowEditControls] = useState(false)
+  const [editControlsTimeout, setEditControlsTimeout] = useState<number | null>(null)
+  
+  // Global settings mode - when true, individual widget settings are disabled
+  const isGlobalSettingsMode = showSettingsPanel
+  
+  // Swipe gesture state for edit controls
+  const [swipeStartX, setSwipeStartX] = useState<number | null>(null)
+  const [swipeStartY, setSwipeStartY] = useState<number | null>(null)
+  
+  // Touch event handlers for swipe gesture
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0]
+    setSwipeStartX(touch.clientX)
+    setSwipeStartY(touch.clientY)
+  }
+  
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (swipeStartX === null || swipeStartY === null) return
+    
+    const touch = e.changedTouches[0]
+    const deltaX = touch.clientX - swipeStartX
+    const deltaY = touch.clientY - swipeStartY
+    
+    // Check if it's a swipe from right edge (within 50px from right)
+    const isFromRightEdge = swipeStartX > window.innerWidth - 50
+    
+    // Check if it's a leftward swipe (at least 100px) and not too vertical
+    const isLeftSwipe = deltaX < -100 && Math.abs(deltaY) < 100
+    
+    if (isFromRightEdge && isLeftSwipe) {
+      setShowEditControls(true)
+      // Clear any existing timeout
+      if (editControlsTimeout) {
+        clearTimeout(editControlsTimeout)
+        setEditControlsTimeout(null)
+      }
+      // Set auto-hide timeout only if no menus are open
+      if (!showWidgetPanel && !showSettingsPanel) {
+        const timeoutId = setTimeout(() => {
+          setShowEditControls(false)
+        }, 5000)
+        setEditControlsTimeout(timeoutId)
+      }
+    }
+    
+    setSwipeStartX(null)
+    setSwipeStartY(null)
+  }
 
   useEffect(() => {
     console.log('useEffect running for socket connection...')
@@ -93,6 +143,35 @@ function App() {
     }
   }, [connect, disconnect])
 
+  // Keyboard event handler for 'M' key to show edit controls
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'm' || e.key === 'M') {
+        // Prevent default behavior and don't trigger if user is typing in an input
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+          return
+        }
+        e.preventDefault()
+        setShowEditControls(true)
+        // Clear any existing timeout
+        if (editControlsTimeout) {
+          clearTimeout(editControlsTimeout)
+          setEditControlsTimeout(null)
+        }
+        // Set auto-hide timeout only if no menus are open
+        if (!showWidgetPanel && !showSettingsPanel) {
+          const timeoutId = setTimeout(() => {
+            setShowEditControls(false)
+          }, 5000)
+          setEditControlsTimeout(timeoutId)
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   const handleLayoutChange = (newLayout: any) => {
     console.log('Layout change detected:', newLayout)
     console.log('Previous layout:', layout)
@@ -107,16 +186,46 @@ function App() {
   }
 
   const handleRemoveWidget = (widgetId: string) => {
+    console.log('Starting widget deletion:', widgetId)
+    
+    // Mark widget as being deleted
+    setDeletingWidgets(prev => new Set(prev).add(widgetId))
+    
+    // Perform deletion
     removeWidget(widgetId)
     removeWidgetFromLayout(widgetId)
+    
+    // Clear deleting state after a short delay
+    setTimeout(() => {
+      setDeletingWidgets(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(widgetId)
+        return newSet
+      })
+    }, 100)
   }
 
   const handleToggleEditMode = () => {
+    const newIsEditMode = !isEditMode
     toggleEditMode()
-    // 編集モードを終了する際はパネルも閉じる
-    if (isEditMode) {
+    
+    if (newIsEditMode) {
+      // 編集モードに入る時：タイムアウトをクリア
+      if (editControlsTimeout) {
+        clearTimeout(editControlsTimeout)
+        setEditControlsTimeout(null)
+      }
+    } else {
+      // 編集モードを終了する際はパネルも閉じる
       setShowWidgetPanel(false)
       setShowSettingsPanel(false)
+      setShowEditControls(false)
+    }
+  }
+
+  const handleResetLayout = () => {
+    if (confirm('ウィジェットの配置をデフォルトに戻しますか？')) {
+      resetLayout()
     }
   }
 
@@ -127,18 +236,44 @@ function App() {
     backgroundOpacity: 0.8
   }
   
-  const backgroundStyles = {
-    backgroundImage: appearance.backgroundType === 'image' && appearance.backgroundImage
-      ? `url(${appearance.backgroundImage})`
-      : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundRepeat: 'no-repeat',
-  }
+  const backgroundStyles = (() => {
+    switch (appearance.backgroundType) {
+      case 'image':
+        return appearance.backgroundImage ? {
+          backgroundImage: `url(${appearance.backgroundImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        } : {
+          backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }
+      case 'solid':
+        return {
+          backgroundColor: appearance.backgroundColor || '#1e293b',
+        }
+      default: // gradient
+        return {
+          backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }
+    }
+  })()
 
-  const overlayOpacity = appearance.backgroundType === 'image' 
-    ? 1 - appearance.backgroundOpacity 
-    : 0.3
+  const overlayOpacity = (() => {
+    switch (appearance.backgroundType) {
+      case 'image':
+        return 1 - appearance.backgroundOpacity
+      case 'solid':
+        return 1 - appearance.backgroundOpacity
+      default: // gradient
+        return 0.3
+    }
+  })()
 
   const themeClass = `theme-${appearance.uiStyle}`
   
@@ -149,21 +284,18 @@ function App() {
     themeClass 
   })
   
-  // Debug: Check localStorage on render
-  const storedLayoutData = localStorage.getItem('smart-display-layout')
-  console.log('Current localStorage layout data:', storedLayoutData)
-  
-  // Debug: Show all localStorage keys
-  console.log('All localStorage keys:', Object.keys(localStorage))
+  console.log('Grid layout items:', layout.length)
 
   return (
     <div 
-      className={`h-screen w-screen overflow-hidden relative theme-transition ${themeClass}`}
+      className={`h-screen w-screen relative theme-transition ${themeClass}`}
       style={backgroundStyles}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Background overlay */}
       <div 
-        className="absolute inset-0 bg-black"
+        className="fixed inset-0 bg-black pointer-events-none"
         style={{ opacity: overlayOpacity }}
       />
       {/* Debug Panel */}
@@ -192,7 +324,7 @@ function App() {
       )}
 
       {/* Control Panel */}
-      <div className="absolute top-8 right-8 z-40 flex gap-4">
+      <div className={`absolute top-8 right-8 z-40 flex gap-4 transition-all duration-300 ${showEditControls || isEditMode ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'}`}>
         <PWAControls />
         <button
           onClick={handleToggleEditMode}
@@ -214,10 +346,25 @@ function App() {
           )}
         </button>
         
-        {isEditMode && (
+        {isEditMode && showEditControls && (
           <>
             <button
-              onClick={() => setShowWidgetPanel(!showWidgetPanel)}
+              onClick={() => {
+                const newShowWidgetPanel = !showWidgetPanel
+                setShowWidgetPanel(newShowWidgetPanel)
+                // Clear timeout when opening widget panel
+                if (newShowWidgetPanel && editControlsTimeout) {
+                  clearTimeout(editControlsTimeout)
+                  setEditControlsTimeout(null)
+                }
+                // Set timeout when closing widget panel (if settings panel is also closed)
+                if (!newShowWidgetPanel && !showSettingsPanel) {
+                  const timeoutId = setTimeout(() => {
+                    setShowEditControls(false)
+                  }, 5000)
+                  setEditControlsTimeout(timeoutId)
+                }
+              }}
               className={`relative p-3 rounded-xl ${
                 appearance.uiStyle === 'liquid-glass'
                   ? showWidgetPanel
@@ -233,7 +380,22 @@ function App() {
             </button>
             
             <button
-              onClick={() => setShowSettingsPanel(!showSettingsPanel)}
+              onClick={() => {
+                const newShowSettingsPanel = !showSettingsPanel
+                setShowSettingsPanel(newShowSettingsPanel)
+                // Clear timeout when opening settings panel
+                if (newShowSettingsPanel && editControlsTimeout) {
+                  clearTimeout(editControlsTimeout)
+                  setEditControlsTimeout(null)
+                }
+                // Set timeout when closing settings panel (if widget panel is also closed)
+                if (!newShowSettingsPanel && !showWidgetPanel) {
+                  const timeoutId = setTimeout(() => {
+                    setShowEditControls(false)
+                  }, 5000)
+                  setEditControlsTimeout(timeoutId)
+                }
+              }}
               className={`relative p-3 rounded-xl ${
                 appearance.uiStyle === 'liquid-glass'
                   ? showSettingsPanel
@@ -247,6 +409,18 @@ function App() {
             >
               <Settings size={20} />
             </button>
+            
+            <button
+              onClick={handleResetLayout}
+              className={`relative p-3 rounded-xl ${
+                appearance.uiStyle === 'liquid-glass'
+                  ? 'backdrop-blur-2xl bg-gradient-to-br from-red-400/20 via-pink-400/15 to-rose-400/20 border border-red-300/30 text-white shadow-2xl shadow-red-500/20'
+                  : 'material-button'
+              }`}
+              title="配置をリセット"
+            >
+              <RefreshCcw size={20} />
+            </button>
           </>
         )}
       </div>
@@ -258,7 +432,7 @@ function App() {
 
       {/* Settings Panel Background Overlay */}
       {showSettingsPanel && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" />
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-20" />
       )}
 
       {/* Settings Panel */}
@@ -268,7 +442,7 @@ function App() {
 
       {/* Grid Layout */}
       <ResponsiveGridLayout
-        className="layout"
+        className="layout relative z-10"
         layouts={{ lg: layout }}
         breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
         cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
@@ -277,23 +451,47 @@ function App() {
         isDraggable={isEditMode}
         isResizable={isEditMode}
         margin={[16, 16]}
+        compactType={null}
+        preventCollision={true}
+        verticalCompact={false}
+        // dragStartDelay={100}
       >
-        {widgets.map((widget) => {
-          const layoutItem = layout.find(item => item.i === widget.id)
-          if (!layoutItem) return null
-          
-          return (
-            <div key={widget.id} className="widget-container">
-              <WidgetRenderer
-                widget={widget}
-                isEditMode={isEditMode}
-                onRemove={handleRemoveWidget}
-              />
-            </div>
-          )
-        })}
-      </ResponsiveGridLayout>
-
+        {widgets
+          .filter(widget => !deletingWidgets.has(widget.id))
+          .map((widget) => {
+            const layoutItem = layout.find(item => item.i === widget.id)
+            if (!layoutItem) return null
+            
+            const isDeleting = deletingWidgets.has(widget.id)
+            
+            return (
+              <div key={widget.id} className="widget-container relative">
+                <WidgetRenderer
+                  widget={widget}
+                  isEditMode={isEditMode}
+                  onRemove={handleRemoveWidget}
+                  isGlobalSettingsMode={isGlobalSettingsMode}
+                />
+                
+                {/* Edit Mode Delete Button */}
+                {isEditMode && !isDeleting && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      e.preventDefault()
+                      console.log('Deleting widget:', widget.id)
+                      handleRemoveWidget(widget.id)
+                    }}
+                    className="absolute top-2 right-2 z-40 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-2xl transition-all duration-300 hover:scale-110 group"
+                    title={`${widget.type}ウィジェットを削除`}
+                  >
+                    <X size={16} className="group-hover:rotate-90 transition-transform duration-300" />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </ResponsiveGridLayout>
     </div>
   )
 }

@@ -124,7 +124,7 @@ export default function ClockWidget({
             <input
               type="range"
               min="14"
-              max="96"
+              max="200"
               step="4"
               value={manualFontSize}
               onChange={(e) => handleFontSizeChange(parseInt(e.target.value))}

@@ -17,11 +17,21 @@ interface SocketState {
   emitWeatherRequest: (location?: string) => void
 }
 
-// Dynamic Socket.IO URL - force HTTP for LAN access
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 
-  (typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
-    ? `http://${window.location.hostname}:3001` 
-    : 'http://localhost:3001')
+// Dynamic Socket.IO URL - use HTTP for localhost, match protocol for production
+const getSocketUrl = () => {
+  if (typeof window === 'undefined') return 'http://localhost:3001'
+  
+  // Force HTTP for localhost development
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
+  }
+  
+  // Match protocol for production
+  const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:'
+  return import.meta.env.VITE_SOCKET_URL || `${protocol}//${window.location.hostname}:3001`
+}
+
+const SOCKET_URL = getSocketUrl()
 
 export const useSocketStore = create<SocketState>((set, get) => ({
   socket: null,
@@ -29,13 +39,15 @@ export const useSocketStore = create<SocketState>((set, get) => ({
   
   connect: () => {
     const socket = io(SOCKET_URL, {
-      // Force HTTP transport and disable HTTPS
+      // Transport settings
       transports: ['polling', 'websocket'],
       upgrade: true,
       rememberUpgrade: false,
       forceNew: true,
-      // Explicitly force HTTP protocol
-      secure: false,
+      // Protocol security - use false for localhost, match protocol for production
+      secure: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+        ? false 
+        : window.location.protocol === 'https:',
       // Additional options for LAN/cross-origin access
       timeout: 20000,
       reconnection: true,
@@ -60,7 +72,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
       console.error('❌ Socket.IO Connection error:', {
         error: error,
         message: error.message,
-        description: error.description,
+        description: (error as any).description,
         context: {
           socketUrl: SOCKET_URL,
           currentUrl: typeof window !== 'undefined' ? window.location.href : 'undefined'

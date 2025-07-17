@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react'
-import { X, Monitor, Upload, RotateCcw } from 'lucide-react'
+import React, { useState, useRef, useEffect } from 'react'
+import { X, Monitor, Upload, RotateCcw, Maximize, Minimize } from 'lucide-react'
 import { useSettingsStore } from '../stores/settingsStore'
+import { toggleFullscreen, isPWAMode } from '../utils/pwa'
 
 interface SettingsPanelProps {
   onClose: () => void
@@ -12,12 +13,29 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
     updateUIStyle,
     updateBackgroundType,
     updateBackgroundImage,
+    updateBackgroundColor,
     updateBackgroundOpacity,
     resetSettings
   } = useSettingsStore()
   
-  const [activeTab, setActiveTab] = useState<'appearance' | 'background'>('appearance')
+  const [activeTab, setActiveTab] = useState<'appearance' | 'background' | 'display'>('appearance')
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isPWA, setIsPWA] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    // フルスクリーン状態監視
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    setIsPWA(isPWAMode())
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }
+  }, [])
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -39,6 +57,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
   const handleRemoveBackground = () => {
     updateBackgroundImage('')
     updateBackgroundType('gradient')
+  }
+
+  const handleToggleFullscreen = async () => {
+    await toggleFullscreen()
   }
 
   return (
@@ -126,6 +148,20 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
             }`}
           >
             背景
+          </button>
+          <button
+            onClick={() => setActiveTab('display')}
+            className={`flex-1 px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-300 ${
+              activeTab === 'display'
+                ? settings.appearance.uiStyle === 'liquid-glass'
+                  ? 'bg-gradient-to-r from-blue-400/30 to-purple-400/30 text-white border border-blue-300/30 shadow-lg'
+                  : 'bg-blue-100 border border-blue-200 text-blue-700 shadow-md'
+                : settings.appearance.uiStyle === 'liquid-glass'
+                  ? 'text-white/60 hover:text-white/80 hover:bg-white/10'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+            }`}
+          >
+            表示
           </button>
         </div>
 
@@ -235,6 +271,18 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
                   >
                     画像
                   </button>
+                  <button
+                    onClick={() => updateBackgroundType('solid')}
+                    className={`w-full text-left p-3 rounded-xl border text-sm font-medium ${
+                      settings.appearance.backgroundType === 'solid'
+                        ? 'bg-gradient-to-r from-blue-400/20 to-purple-400/20 border-blue-300/30 text-white'
+                        : settings.appearance.uiStyle === 'liquid-glass'
+                          ? 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
+                          : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    単色
+                  </button>
                 </div>
               </div>
 
@@ -297,6 +345,79 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
                     onChange={handleImageUpload}
                     className="hidden"
                   />
+                </div>
+              )}
+
+              {/* Color Selection */}
+              {settings.appearance.backgroundType === 'solid' && (
+                <div>
+                  <h4 className={`text-sm font-medium mb-3 ${
+                    settings.appearance.uiStyle === 'liquid-glass'
+                      ? 'text-white/80'
+                      : 'text-gray-700'
+                  }`}>
+                    背景色
+                  </h4>
+                  
+                  {/* Color Presets */}
+                  <div className="mb-4">
+                    <div className={`text-xs mb-2 ${
+                      settings.appearance.uiStyle === 'liquid-glass'
+                        ? 'text-white/60'
+                        : 'text-gray-500'
+                    }`}>
+                      プリセット
+                    </div>
+                    <div className="grid grid-cols-6 gap-2">
+                      {[
+                        '#1e293b', '#0f172a', '#312e81', '#581c87', '#7c2d12', '#991b1b',
+                        '#1f2937', '#374151', '#4c1d95', '#6b21a8', '#9a3412', '#dc2626',
+                        '#064e3b', '#065f46', '#0c4a6e', '#1e40af', '#c2410c', '#ea580c'
+                      ].map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => updateBackgroundColor(color)}
+                          className={`w-8 h-8 rounded-lg border-2 transition-all duration-300 ${
+                            settings.appearance.backgroundColor === color
+                              ? 'border-white scale-110 shadow-lg'
+                              : 'border-white/20 hover:border-white/40 hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          title={color}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Custom Color Input */}
+                  <div>
+                    <div className={`text-xs mb-2 ${
+                      settings.appearance.uiStyle === 'liquid-glass'
+                        ? 'text-white/60'
+                        : 'text-gray-500'
+                    }`}>
+                      カスタムカラー
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={settings.appearance.backgroundColor || '#1e293b'}
+                        onChange={(e) => updateBackgroundColor(e.target.value)}
+                        className="w-12 h-10 rounded-lg border border-white/20 bg-transparent cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={settings.appearance.backgroundColor || '#1e293b'}
+                        onChange={(e) => updateBackgroundColor(e.target.value)}
+                        placeholder="#1e293b"
+                        className={`flex-1 px-3 py-2 rounded-lg border text-sm ${
+                          settings.appearance.uiStyle === 'liquid-glass'
+                            ? 'bg-white/10 border-white/20 text-white placeholder-white/40'
+                            : 'bg-gray-50 border-gray-200 text-gray-700 placeholder-gray-400'
+                        }`}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -370,6 +491,90 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
                   }
                 `}</style>
               </div>
+            </>
+          )}
+
+          {activeTab === 'display' && (
+            <>
+              {/* フルスクリーン切り替え */}
+              {!isPWA && (
+                <div>
+                  <h4 className={`text-sm font-medium mb-3 ${
+                    settings.appearance.uiStyle === 'liquid-glass'
+                      ? 'text-white/80'
+                      : 'text-gray-700'
+                  }`}>
+                    画面モード
+                  </h4>
+                  <button
+                    onClick={handleToggleFullscreen}
+                    className={`w-full text-left p-4 rounded-xl border text-sm font-medium transition-all duration-300 ${
+                      settings.appearance.uiStyle === 'liquid-glass'
+                        ? 'bg-gradient-to-r from-white/5 to-white/10 hover:from-white/10 hover:to-white/15 border-white/20 hover:border-white/30 text-white'
+                        : 'bg-gray-50 hover:bg-gray-100 border-gray-200 hover:border-gray-300 text-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {isFullscreen ? (
+                        <Minimize size={18} className={
+                          settings.appearance.uiStyle === 'liquid-glass'
+                            ? 'text-blue-300'
+                            : 'text-blue-600'
+                        } />
+                      ) : (
+                        <Maximize size={18} className={
+                          settings.appearance.uiStyle === 'liquid-glass'
+                            ? 'text-blue-300'
+                            : 'text-blue-600'
+                        } />
+                      )}
+                      <div>
+                        <div className="font-medium">
+                          {isFullscreen ? 'フルスクリーン解除' : 'フルスクリーン表示'}
+                        </div>
+                        <div className={`text-xs ${
+                          settings.appearance.uiStyle === 'liquid-glass'
+                            ? 'text-white/60'
+                            : 'text-gray-500'
+                        }`}>
+                          {isFullscreen ? 'ウィンドウモードに戻します' : '画面全体に表示します'}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              )}
+
+              {isPWA && (
+                <div>
+                  <h4 className={`text-sm font-medium mb-3 ${
+                    settings.appearance.uiStyle === 'liquid-glass'
+                      ? 'text-white/80'
+                      : 'text-gray-700'
+                  }`}>
+                    画面モード
+                  </h4>
+                  <div className={`p-4 rounded-xl border text-sm ${
+                    settings.appearance.uiStyle === 'liquid-glass'
+                      ? 'bg-gradient-to-r from-green-400/10 to-blue-400/10 border-green-400/20 text-green-300'
+                      : 'bg-green-50 border-green-200 text-green-700'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <Monitor size={18} className="text-green-400" />
+                      <div>
+                        <div className="font-medium">PWAモード</div>
+                        <div className={`text-xs ${
+                          settings.appearance.uiStyle === 'liquid-glass'
+                            ? 'text-green-200/80'
+                            : 'text-green-600'
+                        }`}>
+                          アプリとして全画面表示中
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

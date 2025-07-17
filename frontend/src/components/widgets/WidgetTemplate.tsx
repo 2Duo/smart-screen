@@ -79,7 +79,6 @@ export const WidgetTemplate: React.FC<WidgetTemplateProps> = ({
   
   // Theme-aware styling
   const isLiquidGlass = uiStyle === 'liquid-glass'
-  const isMaterialYou = uiStyle === 'material-you'
   
   const containerClass = isLiquidGlass 
     ? 'glass-widget' 

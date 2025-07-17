@@ -4,7 +4,7 @@ import ClockWidget from './ClockWidget'
 import WeatherWidget from './WeatherWidget'
 import CalendarWidget from './CalendarWidget'
 import { WidgetTemplate } from './WidgetTemplate'
-import { Newspaper, Image, Settings, Trash2 } from 'lucide-react'
+import { Newspaper, Image, Settings } from 'lucide-react'
 
 /*
  * WIDGET REGISTRY - NEW WIDGET IMPLEMENTATION GUIDE
@@ -86,12 +86,12 @@ interface WidgetRendererProps {
   widget: Widget
   isEditMode?: boolean
   onRemove?: (id: string) => void
+  isGlobalSettingsMode?: boolean
 }
 
 export const WidgetRenderer: React.FC<WidgetRendererProps> = ({ 
   widget, 
-  isEditMode = false, 
-  onRemove 
+  isGlobalSettingsMode = false
 }) => {
   const WidgetComponent = widgetComponents[widget.type]
   
@@ -108,47 +108,8 @@ export const WidgetRenderer: React.FC<WidgetRendererProps> = ({
   
   return (
     <div className="h-full relative">
-      <WidgetComponent {...widget.config} widgetId={widget.id} />
+      <WidgetComponent {...widget.config} widgetId={widget.id} isGlobalSettingsMode={isGlobalSettingsMode} />
       
-      {isEditMode && (
-        <>
-          {/* Edit overlay - Clean blur only */}
-          <div className="absolute inset-0 backdrop-blur-md rounded-2xl pointer-events-none"></div>
-          
-          {/* Delete button - Enhanced Liquid Glass */}
-          <div 
-            className="absolute -top-4 -right-4 z-50"
-            onMouseDown={(e) => {
-              e.stopPropagation()
-              e.preventDefault()
-            }}
-            onTouchStart={(e) => {
-              e.stopPropagation()
-              e.preventDefault()
-            }}
-            onClick={(e) => {
-              e.stopPropagation()
-              e.preventDefault()
-            }}
-          >
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                e.preventDefault()
-                onRemove?.(widget.id)
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation()
-                e.preventDefault()
-              }}
-              className="w-14 h-14 backdrop-blur-2xl bg-gradient-to-br from-red-400/20 via-rose-400/15 to-pink-400/20 border border-red-300/30 rounded-2xl flex items-center justify-center shadow-2xl shadow-red-500/20"
-              title="ウィジェットを削除"
-            >
-              <Trash2 size={18} className="text-white/90" />
-            </button>
-          </div>
-        </>
-      )}
     </div>
   )
 }

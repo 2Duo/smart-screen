@@ -1,5 +1,6 @@
 import express from 'express';
 import { createServer } from 'http';
+import { createServer as createHttpsServer } from 'https';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -14,7 +15,34 @@ import { InputValidator, HTMLEscaper } from './utils/validation';
 dotenv.config();
 
 const app = express();
-const server = createServer(app);
+
+// SSL証明書の存在確認とHTTPS対応
+let server;
+let isHttps = false;
+
+try {
+  const keyPath = path.resolve(__dirname, '../server.key');
+  const certPath = path.resolve(__dirname, '../server.crt');
+  
+  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    // HTTPS サーバーを作成
+    const credentials = {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath)
+    };
+    server = createHttpsServer(credentials, app);
+    isHttps = true;
+    console.log('🔒 Backend HTTPS server created');
+  } else {
+    // HTTP サーバーを作成
+    server = createServer(app);
+    console.log('📡 Backend HTTP server created');
+  }
+} catch (error) {
+  console.log('SSL certificates not found, using HTTP');
+  server = createServer(app);
+  isHttps = false;
+}
 // Socket.io connection tracking for rate limiting
 const socketConnections = new Map<string, { count: number; lastConnected: number }>();
 
@@ -23,7 +51,9 @@ const io = new Server(server, {
     origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
       const allowedOrigins = [
         process.env.FRONTEND_URL || "http://localhost:5173",
+        "https://localhost:5173", // HTTPS localhost for PWA
         "http://localhost:5174", // Alternative dev port
+        "https://localhost:5174", // HTTPS alternative port
         process.env.PRODUCTION_FRONTEND_URL || "https://yourdomain.com",
       ].filter(Boolean);
 
@@ -148,16 +178,21 @@ const corsOptions = {
   origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
     const allowedOrigins = [
       process.env.FRONTEND_URL || "http://localhost:5173",
+      "https://localhost:5173", // HTTPS localhost for PWA
       "http://localhost:5174", // Alternative dev port
+      "https://localhost:5174", // HTTPS alternative port
       process.env.PRODUCTION_FRONTEND_URL || "https://yourdomain.com",
     ].filter(Boolean);
 
     // Allow local network access (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
     const isLocalNetwork = origin && /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(origin);
 
+    console.log('CORS check:', { origin, allowedOrigins, isLocalNetwork });
+
     if (!origin || allowedOrigins.includes(origin) || isLocalNetwork) {
       callback(null, true);
     } else {
+      console.log('CORS blocked:', origin);
       callback(new Error('Not allowed by CORS'), false);
     }
   },
@@ -288,16 +323,30 @@ app.get('/api/weather', weatherApiLimiter, async (req, res) => {
     
     const formattedLocation = formatLocationName(data, geoData);
     
-    // Calculate daily precipitation probability from remainder of today's forecast entries
+    // Calculate daily precipitation probability from all of today's forecast entries
     const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
-    // Filter forecast entries for remainder of today (from now until end of day)
+    // Filter forecast entries for entire day (from start of day until end of day)
     const todayForecasts =
       forecastData.list?.filter((entry: any) => {
         const entryDate = new Date(entry.dt * 1000);
-        return entryDate >= now && entryDate < todayEnd;
+        return entryDate >= todayStart && entryDate < todayEnd;
       }) || [];
+
+    // If no forecast data for today (late at night), use current weather to estimate
+    let estimatedRainProbability = 0;
+    if (todayForecasts.length === 0) {
+      // If it's currently raining, estimate high probability
+      if (data.weather[0].main === 'Rain' || data.weather[0].main === 'Drizzle') {
+        estimatedRainProbability = 90; // High probability if currently raining
+      } else if (data.weather[0].main === 'Clouds' && data.main.humidity > 80) {
+        estimatedRainProbability = 60; // Medium probability for cloudy and humid
+      } else {
+        estimatedRainProbability = 20; // Low probability for clear weather
+      }
+    }
 
     // OpenWeather's pop value is given for each 3h period. To estimate the
     // probability that it rains at any point today we combine the values by
@@ -311,7 +360,7 @@ app.get('/api/weather', weatherApiLimiter, async (req, res) => {
       combinedPop = Math.round((1 - noRainProbability) * 100);
     }
 
-    const precipitationProbability = combinedPop;
+    const precipitationProbability = todayForecasts.length > 0 ? combinedPop : estimatedRainProbability;
 
     // Calculate rain periods - identify time periods with significant precipitation probability
     const rainPeriods: Array<{ start: string; end: string; probability: number }> = [];
@@ -355,6 +404,22 @@ app.get('/api/weather', weatherApiLimiter, async (req, res) => {
         start: currentRainPeriod.start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
         end: currentRainPeriod.end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
         probability: Math.round(currentRainPeriod.maxProbability * 100)
+      });
+    }
+
+    // If no forecast data for today, estimate rain periods from current weather
+    if (todayForecasts.length === 0 && (data.weather[0].main === 'Rain' || data.weather[0].main === 'Drizzle')) {
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      
+      // Estimate current rain period (current time ± 2 hours)
+      const rainStart = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+      const rainEnd = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+      
+      rainPeriods.push({
+        start: rainStart.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+        end: rainEnd.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+        probability: estimatedRainProbability
       });
     }
 
@@ -514,7 +579,7 @@ function mapWeatherIcon(iconCode: string): string {
   return iconMap[iconCode] || 'default';
 }
 
-// Google Calendar API setup
+// Google Calendar and Tasks API setup
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
@@ -613,7 +678,10 @@ app.get('/api/calendar/auth', calendarApiLimiter, (req, res) => {
 
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: 'offline',
-      scope: ['https://www.googleapis.com/auth/calendar.readonly'],
+      scope: [
+        'https://www.googleapis.com/auth/calendar.readonly',
+        'https://www.googleapis.com/auth/tasks.readonly'
+      ],
       prompt: 'consent'
     });
 
@@ -936,6 +1004,141 @@ app.get('/api/calendar/status', calendarApiLimiter, async (req, res) => {
   }
 });
 
+// Google Tasks API endpoint
+app.get('/api/calendar/tasks', calendarApiLimiter, async (req, res) => {
+  try {
+    console.log('Tasks API called');
+    
+    // Ensure tokens are valid and refresh if needed
+    const isAuthenticated = await ensureValidTokens('default');
+    
+    if (!isAuthenticated) {
+      console.log('User not authenticated for tasks');
+      return res.status(401).json({
+        success: false,
+        error: 'User not authenticated',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    console.log('User authenticated, creating tasks client');
+    const tasks = google.tasks({ version: 'v1', auth: oauth2Client });
+
+    // Get task lists first
+    console.log('Fetching task lists...');
+    const taskListsResponse = await tasks.tasklists.list();
+    const taskLists = taskListsResponse.data.items || [];
+    console.log('Task lists found:', taskLists.length);
+
+    if (taskLists.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          tasks: [],
+          lastUpdated: new Date().toISOString(),
+          isAuthenticated: true,
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Get tasks from all task lists
+    const allTasks: any[] = [];
+    
+    for (const taskList of taskLists) {
+      if (!taskList.id) continue;
+      
+      try {
+        const tasksResponse = await tasks.tasks.list({
+          tasklist: taskList.id,
+          maxResults: 50,
+          showCompleted: false, // Only show incomplete tasks
+          showDeleted: false,
+          dueMax: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // Next 30 days
+        });
+
+        const taskItems = tasksResponse.data.items || [];
+        
+        taskItems.forEach(task => {
+          allTasks.push({
+            id: HTMLEscaper.escape(task.id || ''),
+            title: HTMLEscaper.escape(task.title || 'No title'),
+            notes: HTMLEscaper.escape(task.notes || ''),
+            due: task.due || null,
+            updated: task.updated || '',
+            status: task.status as 'needsAction' | 'completed' || 'needsAction',
+            taskListId: HTMLEscaper.escape(taskList.id || ''),
+            taskListTitle: HTMLEscaper.escape(taskList.title || 'Default'),
+            position: task.position || '',
+            parent: task.parent || null,
+            links: task.links?.map(link => ({
+              type: link.type || '',
+              link: HTMLEscaper.escape(link.link || '')
+            })) || [],
+            completed: task.completed || null,
+            deleted: task.deleted || false,
+            hidden: task.hidden || false,
+          });
+        });
+      } catch (taskError) {
+        console.warn(`Failed to fetch tasks from list ${taskList.title}:`, taskError);
+        // Continue with other task lists even if one fails
+      }
+    }
+
+    // Sort tasks by due date and priority
+    allTasks.sort((a, b) => {
+      // Tasks with due dates come first
+      if (a.due && !b.due) return -1;
+      if (!a.due && b.due) return 1;
+      
+      // Sort by due date if both have due dates
+      if (a.due && b.due) {
+        return new Date(a.due).getTime() - new Date(b.due).getTime();
+      }
+      
+      // Sort by updated date for tasks without due dates
+      return new Date(b.updated).getTime() - new Date(a.updated).getTime();
+    });
+
+    const tasksData = {
+      tasks: allTasks,
+      lastUpdated: new Date().toISOString(),
+      isAuthenticated: true,
+    };
+
+    return res.json({
+      success: true,
+      data: tasksData,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Tasks API error:', error);
+    console.error('Error details:', {
+      message: (error as any).message,
+      code: (error as any).code,
+      status: (error as any).status,
+      response: (error as any).response?.data
+    });
+    
+    if ((error as any).code === 401) {
+      // Token expired, need to re-authenticate
+      delete userTokens['default'];
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication expired. Please re-authenticate.',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch tasks',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Socket.io connection handling with rate limiting
 io.on('connection', (socket) => {
   const clientIp = socket.handshake.address;
@@ -1094,6 +1297,7 @@ setInterval(() => {
   console.log(`Socket connections cleanup: ${socketConnections.size} active IPs`);
 }, 60 * 60 * 1000); // Cleanup every hour
 
+
 // Security logging middleware
 app.use((req, res, next) => {
   // Log suspicious requests
@@ -1118,7 +1322,9 @@ app.use((req, res, next) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Smart Display Server running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
-  console.log(`Security measures enabled: Rate limiting, Input validation, XSS protection, Path traversal protection`);
+  const protocol = isHttps ? 'https' : 'http';
+  console.log(`🚀 Smart Display Server running on ${protocol}://localhost:${PORT}`);
+  console.log(`🏥 Health check: ${protocol}://localhost:${PORT}/health`);
+  console.log(`🔒 Protocol: ${protocol.toUpperCase()}`);
+  console.log(`🛡️  Security measures enabled: Rate limiting, Input validation, XSS protection, Path traversal protection`);
 });

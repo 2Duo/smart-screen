@@ -10,26 +10,38 @@ import { useEffect, useState, useRef } from 'react'
 export function calculateAutoFontSize(
   width: number,
   height: number,
-  textType: 'primary' | 'secondary' | 'tertiary' = 'primary'
+  textType: 'primary' | 'secondary' | 'tertiary' | 'details' = 'primary'
 ): number {
-  // ウィジェットの面積を基準に基本サイズを計算
+  // ウィジェットの面積を基準に基本サイズを計算（係数を小さく調整）
   const area = width * height
-  const baseSize = Math.sqrt(area) * 0.25
+  const baseSize = Math.sqrt(area) * 0.12
   
   // テキストタイプに応じた係数
   const typeMultiplier = {
     primary: 1.0,
     secondary: 0.7,
-    tertiary: 0.5
+    tertiary: 0.5,
+    details: 0.3
   }[textType]
   
-  // 最小・最大サイズの制限
-  const minSize = 32
-  const maxSize = 128
+  // 最小・最大サイズの制限（より小さく調整）
+  const minSizes = {
+    primary: 14,
+    secondary: 12,
+    tertiary: 10,
+    details: 8
+  }[textType]
+  
+  const maxSizes = {
+    primary: 64,
+    secondary: 48,
+    tertiary: 36,
+    details: 24
+  }[textType]
   
   const calculatedSize = Math.round(baseSize * typeMultiplier)
   
-  return Math.max(minSize, Math.min(maxSize, calculatedSize))
+  return Math.max(minSizes, Math.min(maxSizes, calculatedSize))
 }
 
 /**
@@ -42,7 +54,7 @@ export function calculateAutoFontSize(
 export function useAutoFontSize(
   enabled: boolean,
   manualSize?: number,
-  textType: 'primary' | 'secondary' | 'tertiary' = 'primary'
+  textType: 'primary' | 'secondary' | 'tertiary' | 'details' = 'primary'
 ): [React.RefObject<HTMLDivElement>, number] {
   const ref = useRef<HTMLDivElement>(null)
   const [fontSize, setFontSize] = useState<number>(manualSize || 48)
@@ -87,12 +99,13 @@ export function useAutoFontSize(
 export function useMultiAutoFontSize(
   enabled: boolean,
   manualSize?: number
-): [React.RefObject<HTMLDivElement>, { primary: number; secondary: number; tertiary: number }] {
+): [React.RefObject<HTMLDivElement>, { primary: number; secondary: number; tertiary: number; details: number }] {
   const ref = useRef<HTMLDivElement>(null)
   const [fontSizes, setFontSizes] = useState({
     primary: manualSize || 48,
     secondary: manualSize ? Math.round(manualSize * 0.7) : 32,
-    tertiary: manualSize ? Math.round(manualSize * 0.5) : 24
+    tertiary: manualSize ? Math.round(manualSize * 0.5) : 24,
+    details: manualSize ? Math.round(manualSize * 0.3) : 16
   })
   
   useEffect(() => {
@@ -101,7 +114,8 @@ export function useMultiAutoFontSize(
         setFontSizes({
           primary: manualSize,
           secondary: Math.round(manualSize * 0.7),
-          tertiary: Math.round(manualSize * 0.5)
+          tertiary: Math.round(manualSize * 0.5),
+          details: Math.round(manualSize * 0.3)
         })
       }
       return
@@ -113,7 +127,8 @@ export function useMultiAutoFontSize(
         setFontSizes({
           primary: calculateAutoFontSize(width, height, 'primary'),
           secondary: calculateAutoFontSize(width, height, 'secondary'),
-          tertiary: calculateAutoFontSize(width, height, 'tertiary')
+          tertiary: calculateAutoFontSize(width, height, 'tertiary'),
+          details: calculateAutoFontSize(width, height, 'details')
         })
       }
     }

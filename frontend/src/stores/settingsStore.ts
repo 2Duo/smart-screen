@@ -9,8 +9,9 @@ interface WeatherSettings {
 
 interface AppearanceSettings {
   uiStyle: 'liquid-glass' | 'material-you'
-  backgroundType: 'gradient' | 'image'
+  backgroundType: 'gradient' | 'image' | 'solid'
   backgroundImage?: string
+  backgroundColor?: string
   backgroundOpacity: number
   autoFontSize?: boolean
 }
@@ -29,8 +30,9 @@ interface SettingsStore {
   updateTheme: (theme: 'light' | 'dark' | 'auto') => void
   updateLanguage: (language: 'en' | 'ja') => void
   updateUIStyle: (style: 'liquid-glass' | 'material-you') => void
-  updateBackgroundType: (type: 'gradient' | 'image') => void
+  updateBackgroundType: (type: 'gradient' | 'image' | 'solid') => void
   updateBackgroundImage: (image: string) => void
+  updateBackgroundColor: (color: string) => void
   updateBackgroundOpacity: (opacity: number) => void
   updateAutoFontSize: (enabled: boolean) => void
   resetSettings: () => void
@@ -47,6 +49,7 @@ const defaultSettings: AppSettings = {
     uiStyle: 'liquid-glass',
     backgroundType: 'gradient',
     backgroundImage: undefined,
+    backgroundColor: '#1e293b',
     backgroundOpacity: 0.8,
     autoFontSize: true,
   }
@@ -54,7 +57,7 @@ const defaultSettings: AppSettings = {
 
 export const useSettingsStore = create<SettingsStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       settings: defaultSettings,
       
       updateWeatherLocation: (location: string) => {
@@ -114,7 +117,7 @@ export const useSettingsStore = create<SettingsStore>()(
           }
         })),
       
-      updateBackgroundType: (type: 'gradient' | 'image') =>
+      updateBackgroundType: (type: 'gradient' | 'image' | 'solid') =>
         set((state) => ({
           settings: {
             ...state.settings,
@@ -139,6 +142,25 @@ export const useSettingsStore = create<SettingsStore>()(
             appearance: {
               ...state.settings.appearance,
               backgroundImage: sanitizedImage
+            }
+          }
+        }))
+      },
+      
+      updateBackgroundColor: (color: string) => {
+        // Sanitize color input
+        const sanitizedColor = InputSanitizer.sanitizeText(color)
+        if (!InputSanitizer.validateInput(sanitizedColor, 50)) {
+          console.warn('Invalid background color')
+          return
+        }
+        
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            appearance: {
+              ...state.settings.appearance,
+              backgroundColor: sanitizedColor
             }
           }
         }))

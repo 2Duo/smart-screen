@@ -16,6 +16,7 @@ interface WeatherWidgetProps {
   onLocationChange?: (location: string) => void
   autoFontSize?: boolean
   widgetId?: string
+  isGlobalSettingsMode?: boolean
 }
 
 const weatherIcons = {
@@ -35,7 +36,8 @@ export default function WeatherWidget({
   layoutConfig: propLayoutConfig,
   onLocationChange,
   autoFontSize: propAutoFontSize,
-  widgetId
+  widgetId,
+  isGlobalSettingsMode = false
 }: WeatherWidgetProps) {
   const { updateWidget, getWidget } = useWidgetStore()
   const { settings } = useSettingsStore()
@@ -51,6 +53,17 @@ export default function WeatherWidget({
     isAutoFontSizeEnabled,
     widget?.config?.fontSize
   )
+
+  // 手動フォントサイズ設定（デフォルト値付き）
+  const manualFontSizes = {
+    primary: widget?.config?.manualFontSizes?.primary ?? 16,
+    secondary: widget?.config?.manualFontSizes?.secondary ?? 14,
+    tertiary: widget?.config?.manualFontSizes?.tertiary ?? 12,
+    details: widget?.config?.manualFontSizes?.details ?? 10
+  }
+
+  // 自動調整無効時は手動フォントサイズを使用
+  const effectiveFontSizes = isAutoFontSizeEnabled ? fontSizes : manualFontSizes
   const currentLocation = propLocation || widget?.config?.location || 'Tokyo'
   const currentLayoutConfig = propLayoutConfig || widget?.config?.layoutConfig || {
     primary: 'temperature',
@@ -86,12 +99,14 @@ export default function WeatherWidget({
   const { data: weather, isLoading, error, refetch } = useQuery<WeatherData>({
     queryKey: ['weather', currentLocation, widgetId],
     queryFn: async () => {
-      // Dynamic API base URL - use current host for LAN access
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 
-        (window.location.hostname === 'localhost' 
-          ? 'http://localhost:3001' 
-          : `http://${window.location.hostname}:3001`)
-      const url = `${baseUrl}/api/weather?location=${encodeURIComponent(currentLocation)}`
+      // Use proxy API path for same-origin requests
+      const url = `/api/weather?location=${encodeURIComponent(currentLocation)}`
+      
+      console.log('🌤️ Weather API Request:', {
+        url,
+        protocol: window.location.protocol,
+        hostname: window.location.hostname
+      })
       
       const response = await fetch(url, {
         method: 'GET',
@@ -99,7 +114,7 @@ export default function WeatherWidget({
           'Content-Type': 'application/json',
         },
         mode: 'cors',
-        credentials: 'include',
+        credentials: 'omit', // Disable credentials for cross-origin
       })
       
       if (!response.ok) {
@@ -128,12 +143,8 @@ export default function WeatherWidget({
     queryFn: async () => {
       if (searchQuery.length < 2) return []
       
-      // Dynamic API base URL - use current host for LAN access
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 
-        (window.location.hostname === 'localhost' 
-          ? 'http://localhost:3001' 
-          : `http://${window.location.hostname}:3001`)
-      const url = `${baseUrl}/api/weather/cities?q=${encodeURIComponent(searchQuery)}`
+      // Use proxy API path for same-origin requests
+      const url = `/api/weather/cities?q=${encodeURIComponent(searchQuery)}`
       
       console.log('Searching cities:', searchQuery)
       
@@ -194,6 +205,19 @@ export default function WeatherWidget({
   const handleAutoFontSizeToggle = (enabled: boolean) => {
     if (widgetId) {
       updateWidget(widgetId, { ...widget?.config, autoFontSize: enabled })
+    }
+  }
+
+  const handleManualFontSizeChange = (type: 'primary' | 'secondary' | 'tertiary' | 'details', size: number) => {
+    if (widgetId && widget) {
+      const newManualFontSizes = {
+        ...manualFontSizes,
+        [type]: size
+      }
+      updateWidget(widgetId, { 
+        ...widget?.config, 
+        manualFontSizes: newManualFontSizes 
+      })
     }
   }
 
@@ -377,19 +401,104 @@ export default function WeatherWidget({
               </button>
             </div>
             
-            {isAutoFontSizeEnabled && (
+            {isAutoFontSizeEnabled ? (
               <div className="space-y-2">
                 <div className={`text-sm ${isLiquidGlass ? 'text-white/60' : 'text-gray-600'}`}>
                   自動計算された文字サイズ:
                 </div>
                 <div className={`text-sm font-medium px-3 py-1 rounded-xl backdrop-blur-xl ${valueDisplayClass}`}>
-                  メイン: {fontSizes.primary}px
+                  メイン: {effectiveFontSizes.primary}px
                 </div>
                 <div className={`text-sm font-medium px-3 py-1 rounded-xl backdrop-blur-xl ${valueDisplayClass}`}>
-                  セカンダリ: {fontSizes.secondary}px
+                  セカンダリ: {effectiveFontSizes.secondary}px
                 </div>
                 <div className={`text-sm font-medium px-3 py-1 rounded-xl backdrop-blur-xl ${valueDisplayClass}`}>
-                  サード: {fontSizes.tertiary}px
+                  サード: {effectiveFontSizes.tertiary}px
+                </div>
+                <div className={`text-sm font-medium px-3 py-1 rounded-xl backdrop-blur-xl ${valueDisplayClass}`}>
+                  詳細: {effectiveFontSizes.details}px
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className={`text-sm ${isLiquidGlass ? 'text-white/60' : 'text-gray-600'}`}>
+                  手動フォントサイズ調整:
+                </div>
+                
+                {/* Primary Font Size */}
+                <div className="space-y-2">
+                  <div className={`text-sm font-medium ${labelClass}`}>
+                    メインテキスト: {manualFontSizes.primary}px
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="128"
+                    value={manualFontSizes.primary}
+                    onChange={(e) => handleManualFontSizeChange('primary', parseInt(e.target.value))}
+                    className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
+                      isLiquidGlass 
+                        ? 'bg-white/20 slider-thumb-liquid-glass' 
+                        : 'bg-gray-300 slider-thumb-material'
+                    }`}
+                  />
+                </div>
+
+                {/* Secondary Font Size */}
+                <div className="space-y-2">
+                  <div className={`text-sm font-medium ${labelClass}`}>
+                    セカンダリテキスト: {manualFontSizes.secondary}px
+                  </div>
+                  <input
+                    type="range"
+                    min="8"
+                    max="48"
+                    value={manualFontSizes.secondary}
+                    onChange={(e) => handleManualFontSizeChange('secondary', parseInt(e.target.value))}
+                    className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
+                      isLiquidGlass 
+                        ? 'bg-white/20 slider-thumb-liquid-glass' 
+                        : 'bg-gray-300 slider-thumb-material'
+                    }`}
+                  />
+                </div>
+
+                {/* Tertiary Font Size */}
+                <div className="space-y-2">
+                  <div className={`text-sm font-medium ${labelClass}`}>
+                    サードテキスト: {manualFontSizes.tertiary}px
+                  </div>
+                  <input
+                    type="range"
+                    min="6"
+                    max="36"
+                    value={manualFontSizes.tertiary}
+                    onChange={(e) => handleManualFontSizeChange('tertiary', parseInt(e.target.value))}
+                    className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
+                      isLiquidGlass 
+                        ? 'bg-white/20 slider-thumb-liquid-glass' 
+                        : 'bg-gray-300 slider-thumb-material'
+                    }`}
+                  />
+                </div>
+
+                {/* Details Font Size */}
+                <div className="space-y-2">
+                  <div className={`text-sm font-medium ${labelClass}`}>
+                    詳細テキスト: {manualFontSizes.details}px
+                  </div>
+                  <input
+                    type="range"
+                    min="6"
+                    max="24"
+                    value={manualFontSizes.details}
+                    onChange={(e) => handleManualFontSizeChange('details', parseInt(e.target.value))}
+                    className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
+                      isLiquidGlass 
+                        ? 'bg-white/20 slider-thumb-liquid-glass' 
+                        : 'bg-gray-300 slider-thumb-material'
+                    }`}
+                  />
                 </div>
               </div>
             )}
@@ -420,7 +529,7 @@ export default function WeatherWidget({
         <WidgetTemplate
           icon={Cloud}
           title="天気"
-          onSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+          onSettings={!isGlobalSettingsMode ? () => setIsSettingsOpen(!isSettingsOpen) : undefined}
         >
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
@@ -428,7 +537,7 @@ export default function WeatherWidget({
           </div>
         </WidgetTemplate>
         
-        {isSettingsOpen && (
+        {!isGlobalSettingsMode && isSettingsOpen && (
           <WidgetSettingsModal
             title="天気設定"
             icon={Cloud}
@@ -468,7 +577,7 @@ export default function WeatherWidget({
         <WidgetTemplate
           icon={Cloud}
           title="天気"
-          onSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+          onSettings={!isGlobalSettingsMode ? () => setIsSettingsOpen(!isSettingsOpen) : undefined}
         >
           <div className="text-center">
             <Cloud className="mx-auto mb-4 text-white/60" size={48} />
@@ -497,7 +606,7 @@ export default function WeatherWidget({
           </div>
         </WidgetTemplate>
         
-        {isSettingsOpen && (
+        {!isGlobalSettingsMode && isSettingsOpen && (
           <WidgetSettingsModal
             title="天気設定"
             icon={Cloud}
@@ -538,7 +647,7 @@ export default function WeatherWidget({
       <WidgetTemplate
         icon={IconComponent}
         title="天気"
-        onSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+        onSettings={!isGlobalSettingsMode ? () => setIsSettingsOpen(!isSettingsOpen) : undefined}
         footer={`最終更新: ${new Date(weather.lastUpdated).toLocaleTimeString('ja-JP', { 
           hour: '2-digit', 
           minute: '2-digit' 
@@ -548,30 +657,34 @@ export default function WeatherWidget({
         {/* Dynamic Layout - Primary Display */}
         {(currentLayoutConfig.primary && currentLayoutConfig.primary !== 'none') || isLayoutEditing ? (
           <div
-            className={isLayoutEditing ? 'text-center p-2 rounded-xl border border-blue-400 cursor-pointer' : 'text-center'}
-            onClick={isLayoutEditing ? () => setSelectedLayoutArea('primary') : undefined}
+            className={isLayoutEditing ? 'text-center p-3 rounded-xl border-2 border-blue-400 cursor-pointer bg-blue-400/10 hover:bg-blue-400/20 transition-all duration-200 relative z-10' : 'text-center'}
+            onClick={isLayoutEditing ? (e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setSelectedLayoutArea('primary')
+            } : undefined}
           >
             {(() => {
               switch (currentLayoutConfig.primary) {
                 case 'temperature':
-                  return <div className="font-bold leading-tight" style={{fontSize: `${fontSizes.primary}px`}}>{weather.current.temperature}°C</div>
+                  return <div className="font-bold leading-tight" style={{fontSize: `${effectiveFontSizes.primary}px`}}>{weather.current.temperature}°C</div>
                 case 'feelsLike':
-                  return <div className="font-bold leading-tight" style={{fontSize: `${fontSizes.primary}px`}}>体感 {weather.current.feelsLike}°C</div>
+                  return <div className="font-bold leading-tight" style={{fontSize: `${effectiveFontSizes.primary}px`}}>体感 {weather.current.feelsLike}°C</div>
                 case 'tempMinMax':
-                  return <div className="font-bold leading-tight" style={{fontSize: `${fontSizes.primary}px`}}>{weather.current.tempMin}°C / {weather.current.tempMax}°C</div>
+                  return <div className="font-bold leading-tight" style={{fontSize: `${effectiveFontSizes.primary}px`}}>{weather.current.tempMin}°C / {weather.current.tempMax}°C</div>
                 case 'description':
-                  return <div className="font-bold leading-tight" style={{fontSize: `${fontSizes.primary}px`}}>{weather.current.description}</div>
+                  return <div className="font-bold leading-tight" style={{fontSize: `${effectiveFontSizes.primary}px`}}>{weather.current.description}</div>
                 case 'location':
-                  return <div className="font-bold leading-tight" style={{fontSize: `${fontSizes.primary}px`}}>{weather.location}</div>
+                  return <div className="font-bold leading-tight" style={{fontSize: `${effectiveFontSizes.primary}px`}}>{weather.location}</div>
                 case 'humidity':
-                  return <div className="font-bold leading-tight" style={{fontSize: `${fontSizes.primary}px`}}>{weather.current.humidity}%</div>
+                  return <div className="font-bold leading-tight" style={{fontSize: `${effectiveFontSizes.primary}px`}}>{weather.current.humidity}%</div>
                 case 'windSpeed':
-                  return <div className="font-bold leading-tight" style={{fontSize: `${fontSizes.primary}px`}}>{weather.current.windSpeed}m/s</div>
+                  return <div className="font-bold leading-tight" style={{fontSize: `${effectiveFontSizes.primary}px`}}>{weather.current.windSpeed}m/s</div>
                 case 'precipitationProbability':
-                  return <div className="font-bold leading-tight" style={{fontSize: `${fontSizes.primary}px`}}>{weather.current.precipitationProbability}%</div>
+                  return <div className="font-bold leading-tight" style={{fontSize: `${effectiveFontSizes.primary}px`}}>{weather.current.precipitationProbability}%</div>
                 case 'rainPeriods':
                   return weather.current.rainPeriods && weather.current.rainPeriods.length > 0 ? (
-                    <div className="text-center font-bold leading-tight" style={{fontSize: `${fontSizes.primary}px`}}>
+                    <div className="text-center font-bold leading-tight" style={{fontSize: `${effectiveFontSizes.primary}px`}}>
                       {weather.current.rainPeriods.map((period, index) => (
                         <div key={index}>
                           {period.start}〜{period.end} ({period.probability}%)
@@ -579,14 +692,15 @@ export default function WeatherWidget({
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center font-bold leading-tight" style={{fontSize: `${fontSizes.primary}px`}}>
+                    <div className="text-center font-bold leading-tight" style={{fontSize: `${effectiveFontSizes.primary}px`}}>
                       なし
                     </div>
                   )
               default:
                 return isLayoutEditing ? (
-                  <div className="text-white/40 font-medium" style={{fontSize: `${fontSizes.primary}px`}}>
-                    プライマリエリア（タップして設定）
+                  <div className="text-blue-300 font-medium" style={{fontSize: `${effectiveFontSizes.primary}px`}}>
+                    📍 プライマリエリア
+                    <div className="text-sm text-blue-200/80 mt-1">タップして項目を選択</div>
                   </div>
                 ) : null
               }
@@ -597,30 +711,34 @@ export default function WeatherWidget({
         {/* Dynamic Layout - Secondary Display */}
         {(currentLayoutConfig.secondary && currentLayoutConfig.secondary !== 'none') || isLayoutEditing ? (
           <div
-            className={isLayoutEditing ? 'text-center p-2 rounded-xl border border-blue-400 cursor-pointer' : 'text-center'}
-            onClick={isLayoutEditing ? () => setSelectedLayoutArea('secondary') : undefined}
+            className={isLayoutEditing ? 'text-center p-3 rounded-xl border-2 border-green-400 cursor-pointer bg-green-400/10 hover:bg-green-400/20 transition-all duration-200 relative z-10' : 'text-center'}
+            onClick={isLayoutEditing ? (e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setSelectedLayoutArea('secondary')
+            } : undefined}
           >
             {(() => {
               switch (currentLayoutConfig.secondary) {
                 case 'temperature':
-                  return <div className="text-white/80 font-medium" style={{fontSize: `${fontSizes.secondary}px`}}>{weather.current.temperature}°C</div>
+                  return <div className="text-white/80 font-medium" style={{fontSize: `${effectiveFontSizes.secondary}px`}}>{weather.current.temperature}°C</div>
                 case 'feelsLike':
-                  return <div className="text-white/80 font-medium" style={{fontSize: `${fontSizes.secondary}px`}}>体感 {weather.current.feelsLike}°C</div>
+                  return <div className="text-white/80 font-medium" style={{fontSize: `${effectiveFontSizes.secondary}px`}}>体感 {weather.current.feelsLike}°C</div>
                 case 'tempMinMax':
-                  return <div className="text-white/80 font-medium" style={{fontSize: `${fontSizes.secondary}px`}}>{weather.current.tempMin}°C / {weather.current.tempMax}°C</div>
+                  return <div className="text-white/80 font-medium" style={{fontSize: `${effectiveFontSizes.secondary}px`}}>{weather.current.tempMin}°C / {weather.current.tempMax}°C</div>
                 case 'description':
-                  return <div className="text-white/80 font-medium" style={{fontSize: `${fontSizes.secondary}px`}}>{weather.current.description}</div>
+                  return <div className="text-white/80 font-medium" style={{fontSize: `${effectiveFontSizes.secondary}px`}}>{weather.current.description}</div>
                 case 'location':
-                  return <div className="text-white/80 font-medium" style={{fontSize: `${fontSizes.secondary}px`}}>{weather.location}</div>
+                  return <div className="text-white/80 font-medium" style={{fontSize: `${effectiveFontSizes.secondary}px`}}>{weather.location}</div>
                 case 'humidity':
-                  return <div className="text-white/80 font-medium" style={{fontSize: `${fontSizes.secondary}px`}}>湿度 {weather.current.humidity}%</div>
+                  return <div className="text-white/80 font-medium" style={{fontSize: `${effectiveFontSizes.secondary}px`}}>湿度 {weather.current.humidity}%</div>
                 case 'windSpeed':
-                  return <div className="text-white/80 font-medium" style={{fontSize: `${fontSizes.secondary}px`}}>風速 {weather.current.windSpeed}m/s</div>
+                  return <div className="text-white/80 font-medium" style={{fontSize: `${effectiveFontSizes.secondary}px`}}>風速 {weather.current.windSpeed}m/s</div>
                 case 'precipitationProbability':
-                  return <div className="text-white/80 font-medium" style={{fontSize: `${fontSizes.secondary}px`}}>降水確率 {weather.current.precipitationProbability}%</div>
+                  return <div className="text-white/80 font-medium" style={{fontSize: `${effectiveFontSizes.secondary}px`}}>降水確率 {weather.current.precipitationProbability}%</div>
                 case 'rainPeriods':
                   return weather.current.rainPeriods && weather.current.rainPeriods.length > 0 ? (
-                    <div className="text-white/80 font-medium" style={{fontSize: `${fontSizes.secondary}px`}}>
+                    <div className="text-white/80 font-medium" style={{fontSize: `${effectiveFontSizes.secondary}px`}}>
                       {weather.current.rainPeriods.map((period, index) => (
                         <div key={index}>
                           {period.start}〜{period.end} ({period.probability}%)
@@ -628,12 +746,13 @@ export default function WeatherWidget({
                       ))}
                     </div>
                   ) : (
-                    <div className="text-white/80 font-medium" style={{fontSize: `${fontSizes.secondary}px`}}>なし</div>
+                    <div className="text-white/80 font-medium" style={{fontSize: `${effectiveFontSizes.secondary}px`}}>なし</div>
                   )
               default:
                 return isLayoutEditing ? (
-                  <div className="text-white/40 font-medium" style={{fontSize: `${fontSizes.secondary}px`}}>
-                    セカンダリエリア（タップして設定）
+                  <div className="text-green-300 font-medium" style={{fontSize: `${effectiveFontSizes.secondary}px`}}>
+                    📍 セカンダリエリア
+                    <div className="text-sm text-green-200/80 mt-1">タップして項目を選択</div>
                   </div>
                 ) : null
               }
@@ -644,30 +763,34 @@ export default function WeatherWidget({
         {/* Dynamic Layout - Tertiary Display */}
         {(currentLayoutConfig.tertiary && currentLayoutConfig.tertiary !== 'none') || isLayoutEditing ? (
           <div
-            className={isLayoutEditing ? 'text-center p-2 rounded-xl border border-blue-400 cursor-pointer' : 'text-center'}
-            onClick={isLayoutEditing ? () => setSelectedLayoutArea('tertiary') : undefined}
+            className={isLayoutEditing ? 'text-center p-3 rounded-xl border-2 border-purple-400 cursor-pointer bg-purple-400/10 hover:bg-purple-400/20 transition-all duration-200 relative z-10' : 'text-center'}
+            onClick={isLayoutEditing ? (e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setSelectedLayoutArea('tertiary')
+            } : undefined}
           >
             {(() => {
               switch (currentLayoutConfig.tertiary) {
                 case 'temperature':
-                  return <div className="text-white/60 font-medium" style={{fontSize: `${fontSizes.tertiary}px`}}>{weather.current.temperature}°C</div>
+                  return <div className="text-white/60 font-medium" style={{fontSize: `${effectiveFontSizes.tertiary}px`}}>{weather.current.temperature}°C</div>
                 case 'feelsLike':
-                  return <div className="text-white/60 font-medium" style={{fontSize: `${fontSizes.tertiary}px`}}>体感 {weather.current.feelsLike}°C</div>
+                  return <div className="text-white/60 font-medium" style={{fontSize: `${effectiveFontSizes.tertiary}px`}}>体感 {weather.current.feelsLike}°C</div>
                 case 'tempMinMax':
-                  return <div className="text-white/60 font-medium" style={{fontSize: `${fontSizes.tertiary}px`}}>{weather.current.tempMin}°C / {weather.current.tempMax}°C</div>
+                  return <div className="text-white/60 font-medium" style={{fontSize: `${effectiveFontSizes.tertiary}px`}}>{weather.current.tempMin}°C / {weather.current.tempMax}°C</div>
                 case 'description':
-                  return <div className="text-white/60 font-medium" style={{fontSize: `${fontSizes.tertiary}px`}}>{weather.current.description}</div>
+                  return <div className="text-white/60 font-medium" style={{fontSize: `${effectiveFontSizes.tertiary}px`}}>{weather.current.description}</div>
                 case 'location':
-                  return <div className="text-white/60 font-medium" style={{fontSize: `${fontSizes.tertiary}px`}}>{weather.location}</div>
+                  return <div className="text-white/60 font-medium" style={{fontSize: `${effectiveFontSizes.tertiary}px`}}>{weather.location}</div>
                 case 'humidity':
-                  return <div className="text-white/60 font-medium" style={{fontSize: `${fontSizes.tertiary}px`}}>湿度 {weather.current.humidity}%</div>
+                  return <div className="text-white/60 font-medium" style={{fontSize: `${effectiveFontSizes.tertiary}px`}}>湿度 {weather.current.humidity}%</div>
                 case 'windSpeed':
-                  return <div className="text-white/60 font-medium" style={{fontSize: `${fontSizes.tertiary}px`}}>風速 {weather.current.windSpeed}m/s</div>
+                  return <div className="text-white/60 font-medium" style={{fontSize: `${effectiveFontSizes.tertiary}px`}}>風速 {weather.current.windSpeed}m/s</div>
                 case 'precipitationProbability':
-                  return <div className="text-white/60 font-medium" style={{fontSize: `${fontSizes.tertiary}px`}}>降水確率 {weather.current.precipitationProbability}%</div>
+                  return <div className="text-white/60 font-medium" style={{fontSize: `${effectiveFontSizes.tertiary}px`}}>降水確率 {weather.current.precipitationProbability}%</div>
                 case 'rainPeriods':
                   return weather.current.rainPeriods && weather.current.rainPeriods.length > 0 ? (
-                    <div className="text-white/60 font-medium" style={{fontSize: `${fontSizes.tertiary}px`}}>
+                    <div className="text-white/60 font-medium" style={{fontSize: `${effectiveFontSizes.tertiary}px`}}>
                       {weather.current.rainPeriods.map((period, index) => (
                         <div key={index}>
                           {period.start}〜{period.end} ({period.probability}%)
@@ -675,12 +798,13 @@ export default function WeatherWidget({
                       ))}
                     </div>
                   ) : (
-                    <div className="text-white/60 font-medium" style={{fontSize: `${fontSizes.tertiary}px`}}>なし</div>
+                    <div className="text-white/60 font-medium" style={{fontSize: `${effectiveFontSizes.tertiary}px`}}>なし</div>
                   )
               default:
                 return isLayoutEditing ? (
-                  <div className="text-white/40 font-medium" style={{fontSize: `${fontSizes.tertiary}px`}}>
-                    サードエリア（タップして設定）
+                  <div className="text-purple-300 font-medium" style={{fontSize: `${effectiveFontSizes.tertiary}px`}}>
+                    📍 サードエリア
+                    <div className="text-sm text-purple-200/80 mt-1">タップして項目を選択</div>
                   </div>
                 ) : null
               }
@@ -691,7 +815,7 @@ export default function WeatherWidget({
         {/* Dynamic Layout - Details Grid */}
         {Object.entries(currentDisplayOptions).some(([key, value]) => 
           value && !['temperature', 'description', 'location'].includes(key)) && (
-          <div className="grid grid-cols-2 gap-2" style={{fontSize: `${fontSizes.tertiary}px`}}>
+          <div className="grid grid-cols-2 gap-2" style={{fontSize: `${effectiveFontSizes.details}px`}}>
             {weatherItems.map(({ key: itemKey, icon: IconComponent }) => {
               if (!currentDisplayOptions[itemKey]) return null
               // プライマリ、セカンダリ、サードエリアに表示される項目は除外
@@ -819,17 +943,27 @@ export default function WeatherWidget({
       </div>
 
       {isLayoutEditing && (
-        <button
-          onClick={() => setIsLayoutEditing(false)}
-          className="absolute top-2 right-2 p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20"
-        >
-          <X size={16} className="text-white" />
-        </button>
+        <div className="absolute top-2 right-2 z-20 flex gap-2">
+          <div className="px-3 py-1 rounded-lg bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-medium">
+            レイアウト編集中
+          </div>
+          <button
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setIsLayoutEditing(false)
+            }}
+            className="p-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 text-red-300 hover:text-red-200 transition-all duration-200"
+            title="編集を終了"
+          >
+            <X size={16} />
+          </button>
+        </div>
       )}
 
       {isLayoutEditing && selectedLayoutArea && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-black/80 via-black/70 to-black/80 border border-white/20 rounded-2xl p-5 max-w-sm w-full max-h-96 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-black/90 via-black/80 to-black/90 border-2 border-white/30 rounded-2xl p-6 max-w-sm w-full max-h-96 overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-lg font-bold text-white">項目を選択</h4>
               <button
@@ -870,7 +1004,7 @@ export default function WeatherWidget({
       )}
       </WidgetTemplate>
       
-      {isSettingsOpen && (
+      {!isGlobalSettingsMode && isSettingsOpen && (
         <WidgetSettingsModal
           title="天気設定"
           icon={Cloud}

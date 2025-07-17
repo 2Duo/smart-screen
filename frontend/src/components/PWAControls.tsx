@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Monitor, Download, Maximize, Minimize, Smartphone, Wifi, WifiOff } from 'lucide-react'
-import { toggleFullscreen, showInstallPrompt, isPWAMode, monitorNetworkStatus } from '../utils/pwa'
+import { Download, Smartphone } from 'lucide-react'
+import { showInstallPrompt, isPWAMode, monitorNetworkStatus } from '../utils/pwa'
 import { useSettingsStore } from '../stores/settingsStore'
 
 export const PWAControls: React.FC = () => {
@@ -8,10 +8,8 @@ export const PWAControls: React.FC = () => {
   const uiStyle = settings?.appearance?.uiStyle || 'liquid-glass'
   const isLiquidGlass = uiStyle === 'liquid-glass'
   
-  const [isFullscreen, setIsFullscreen] = useState(false)
   const [isPWA, setIsPWA] = useState(false)
   const [canInstall, setCanInstall] = useState(false)
-  const [isOnline, setIsOnline] = useState(navigator.onLine)
 
   useEffect(() => {
     // PWAモード検出
@@ -19,7 +17,7 @@ export const PWAControls: React.FC = () => {
     
     // フルスクリーン状態監視
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement)
+      // フルスクリーン状態の更新は不要
     }
     
     document.addEventListener('fullscreenchange', handleFullscreenChange)
@@ -33,7 +31,7 @@ export const PWAControls: React.FC = () => {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
     
     // ネットワーク状態監視
-    monitorNetworkStatus(setIsOnline)
+    monitorNetworkStatus(() => {})
     
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
@@ -41,9 +39,7 @@ export const PWAControls: React.FC = () => {
     }
   }, [])
 
-  const handleToggleFullscreen = async () => {
-    await toggleFullscreen()
-  }
+  // フルスクリーン切り替え関数は使用されていないため削除
 
   const handleInstallPWA = async () => {
     const installed = await showInstallPrompt()
@@ -62,35 +58,11 @@ export const PWAControls: React.FC = () => {
 
   return (
     <div className="flex items-center gap-2">
-      {/* ネットワーク状態 */}
-      <div className={`${buttonClass} ${isOnline ? 'opacity-100' : 'opacity-50'}`} title={isOnline ? 'オンライン' : 'オフライン'}>
-        {isOnline ? (
-          <Wifi size={18} className={`${iconClass} text-green-400`} />
-        ) : (
-          <WifiOff size={18} className={`${iconClass} text-red-400`} />
-        )}
-      </div>
-
       {/* PWAモード表示 */}
       {isPWA && (
         <div className={buttonClass} title="PWAモード">
           <Smartphone size={18} className={`${iconClass} text-blue-400`} />
         </div>
-      )}
-
-      {/* フルスクリーン切り替え */}
-      {!isPWA && (
-        <button
-          onClick={handleToggleFullscreen}
-          className={buttonClass}
-          title={isFullscreen ? 'フルスクリーン解除' : 'フルスクリーン'}
-        >
-          {isFullscreen ? (
-            <Minimize size={18} className={iconClass} />
-          ) : (
-            <Maximize size={18} className={iconClass} />
-          )}
-        </button>
       )}
 
       {/* PWAインストール */}
@@ -103,11 +75,6 @@ export const PWAControls: React.FC = () => {
           <Download size={18} className="text-blue-300" />
         </button>
       )}
-
-      {/* デバイス表示モード */}
-      <div className={buttonClass} title="ディスプレイモード">
-        <Monitor size={18} className={iconClass} />
-      </div>
     </div>
   )
 }

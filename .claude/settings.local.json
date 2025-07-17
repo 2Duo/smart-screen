@@ -17,12 +17,18 @@
       "Bash(chmod:*)",
       "Bash(grep:*)",
       "Bash(./start.sh:*)",
-      "Bash(grep:*)",
       "Bash(rg:*)",
-      "Bash(grep:*)",
       "Bash(touch:*)",
       "Bash(npm install)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(openssl req:*)",
+      "Bash(npx tsc:*)",
+      "Bash(mv:*)",
+      "Bash(git checkout:*)",
+      "Bash(git stash:*)",
+      "WebFetch(domain:developers.home.google.com)",
+      "WebFetch(domain:ifttt.com)",
+      "WebFetch(domain:developer.tuya.com)"
     ],
     "deny": []
   }
