@@ -17,34 +17,36 @@ import './styles/themes.css'
 const ResponsiveGridLayout = WidthProvider(Responsive)
 
 function App() {
-  console.log('App component initializing...')
-  
   const { layout, updateLayout, removeWidgetFromLayout, resetLayout } = useLayoutStore()
-  console.log('Layout store loaded:', layout?.length || 0, 'items')
-  
   const { connect, disconnect } = useSocketStore()
-  console.log('Socket store loaded')
-  
   const { widgets, isEditMode, toggleEditMode, removeWidget } = useWidgetStore()
-  console.log('Widget store loaded:', widgets?.length || 0, 'widgets')
-  
   const { settings, resetSettings } = useSettingsStore()
-  console.log('Settings store loaded:', settings)
-  console.log('Settings.appearance:', settings?.appearance)
-  console.log('Settings full object:', JSON.stringify(settings, null, 2))
+  
+  if (import.meta.env.DEV) {
+    console.log('App initialized:', {
+      layoutItems: layout?.length || 0,
+      widgets: widgets?.length || 0,
+      settings: !!settings
+    })
+  }
   
   // Ensure settings are properly initialized
   if (!settings || !settings.appearance) {
-    console.error('Settings not properly initialized:', settings)
+    if (import.meta.env.DEV) {
+      console.error('Settings not properly initialized:', settings)
+    }
     
-    // Try to reset settings once
     const handleReset = () => {
-      console.log('Attempting to reset settings...')
+      if (import.meta.env.DEV) {
+        console.log('Attempting to reset settings...')
+      }
       resetSettings()
     }
     
     const handleClearStorage = () => {
-      console.log('Clearing localStorage and reloading...')
+      if (import.meta.env.DEV) {
+        console.log('Clearing localStorage and reloading...')
+      }
       localStorage.clear()
       window.location.reload()
     }
@@ -87,6 +89,21 @@ function App() {
   const [swipeStartY, setSwipeStartY] = useState<number | null>(null)
   const [longPressTimer, setLongPressTimer] = useState<number | null>(null)
   
+  // Helper function to manage edit controls timeout
+  const manageEditControlsTimeout = (shouldShow: boolean, immediateHide = false) => {
+    if (editControlsTimeout) {
+      clearTimeout(editControlsTimeout)
+      setEditControlsTimeout(null)
+    }
+    
+    if (shouldShow && !showWidgetPanel && !showSettingsPanel && !immediateHide) {
+      const timeoutId = setTimeout(() => {
+        setShowEditControls(false)
+      }, 5000)
+      setEditControlsTimeout(timeoutId)
+    }
+  }
+  
   // Touch event handlers for long press gesture on top-right area
   const handleTouchStart = (e: React.TouchEvent) => {
     // Check if touch is on an interactive element (button, etc.)
@@ -108,19 +125,8 @@ function App() {
       // Start long press timer
       const timerId = window.setTimeout(() => {
         setShowEditControls(true)
-        // Clear any existing timeout
-        if (editControlsTimeout) {
-          clearTimeout(editControlsTimeout)
-          setEditControlsTimeout(null)
-        }
-        // Set auto-hide timeout only if no menus are open
-        if (!showWidgetPanel && !showSettingsPanel) {
-          const autoHideId = setTimeout(() => {
-            setShowEditControls(false)
-          }, 5000)
-          setEditControlsTimeout(autoHideId)
-        }
-      }, 500) // 500ms long press duration
+        manageEditControlsTimeout(true)
+      }, 500)
       setLongPressTimer(timerId)
     }
     
@@ -160,18 +166,7 @@ function App() {
     
     if (isFromRightEdge && isLeftSwipe) {
       setShowEditControls(true)
-      // Clear any existing timeout
-      if (editControlsTimeout) {
-        clearTimeout(editControlsTimeout)
-        setEditControlsTimeout(null)
-      }
-      // Set auto-hide timeout only if no menus are open
-      if (!showWidgetPanel && !showSettingsPanel) {
-        const timeoutId = setTimeout(() => {
-          setShowEditControls(false)
-        }, 5000)
-        setEditControlsTimeout(timeoutId)
-      }
+      manageEditControlsTimeout(true)
     }
     
     setSwipeStartX(null)
@@ -179,17 +174,20 @@ function App() {
   }
 
   useEffect(() => {
-    console.log('useEffect running for socket connection...')
     try {
       connect()
-      console.log('Socket connect called successfully')
+      if (import.meta.env.DEV) {
+        console.log('Socket connected')
+      }
     } catch (error) {
       console.error('Socket connect failed:', error)
     }
     return () => {
       try {
         disconnect()
-        console.log('Socket disconnect called')
+        if (import.meta.env.DEV) {
+          console.log('Socket disconnected')
+        }
       } catch (error) {
         console.error('Socket disconnect failed:', error)
       }
@@ -206,18 +204,7 @@ function App() {
         }
         e.preventDefault()
         setShowEditControls(true)
-        // Clear any existing timeout
-        if (editControlsTimeout) {
-          clearTimeout(editControlsTimeout)
-          setEditControlsTimeout(null)
-        }
-        // Set auto-hide timeout only if no menus are open
-        if (!showWidgetPanel && !showSettingsPanel) {
-          const timeoutId = setTimeout(() => {
-            setShowEditControls(false)
-          }, 5000)
-          setEditControlsTimeout(timeoutId)
-        }
+        manageEditControlsTimeout(true)
       }
     }
 
@@ -226,29 +213,19 @@ function App() {
   }, [])
 
   const handleLayoutChange = (newLayout: any) => {
-    console.log('Layout change detected:', newLayout)
-    console.log('Previous layout:', layout)
     updateLayout(newLayout)
-    console.log('Layout updated in store')
     
-    // Debug: Check localStorage content
-    setTimeout(() => {
-      const storedData = localStorage.getItem('smart-display-layout')
-      console.log('Stored layout data:', storedData)
-    }, 100)
+    if (import.meta.env.DEV) {
+      console.log('Layout updated:', { items: newLayout.length })
+    }
   }
 
   const handleRemoveWidget = (widgetId: string) => {
-    console.log('Starting widget deletion:', widgetId)
-    
-    // Mark widget as being deleted
     setDeletingWidgets(prev => new Set(prev).add(widgetId))
     
-    // Perform deletion
     removeWidget(widgetId)
     removeWidgetFromLayout(widgetId)
     
-    // Clear deleting state after a short delay
     setTimeout(() => {
       setDeletingWidgets(prev => {
         const newSet = new Set(prev)
@@ -256,6 +233,10 @@ function App() {
         return newSet
       })
     }, 100)
+    
+    if (import.meta.env.DEV) {
+      console.log('Widget removed:', widgetId)
+    }
   }
 
   const handleToggleEditMode = () => {
@@ -263,13 +244,8 @@ function App() {
     toggleEditMode()
     
     if (newIsEditMode) {
-      // 編集モードに入る時：タイムアウトをクリア
-      if (editControlsTimeout) {
-        clearTimeout(editControlsTimeout)
-        setEditControlsTimeout(null)
-      }
+      manageEditControlsTimeout(false, true)
     } else {
-      // 編集モードを終了する際はパネルも閉じる
       setShowWidgetPanel(false)
       setShowSettingsPanel(false)
       setShowEditControls(false)
@@ -330,14 +306,6 @@ function App() {
 
   const themeClass = `theme-${appearance.uiStyle}`
   
-  console.log('App render starting with:', { 
-    widgets: widgets?.length, 
-    layout: layout?.length, 
-    isEditMode, 
-    themeClass 
-  })
-  
-  console.log('Grid layout items:', layout.length)
 
   return (
     <div 
@@ -354,30 +322,6 @@ function App() {
       
       {/* Notification Container */}
       <NotificationContainer />
-      {/* Debug Panel */}
-      {import.meta.env.VITE_DEBUG_MODE === 'true' && (
-        <div className="absolute top-8 left-8 z-40">
-          <button
-            onClick={() => {
-              console.log('=== LAYOUT DEBUG ===')
-              console.log('Current layout from store:', layout)
-              console.log('localStorage item:', localStorage.getItem('smart-display-layout'))
-              console.log('All localStorage keys:', Object.keys(localStorage))
-              
-              // Force save current layout
-              const testLayout = [
-                { i: 'clock', x: 0, y: 0, w: 4, h: 2, minW: 3, minH: 2 },
-                { i: 'weather', x: 4, y: 0, w: 4, h: 3, minW: 3, minH: 3 },
-              ]
-              localStorage.setItem('test-layout', JSON.stringify(testLayout))
-              console.log('Test layout saved:', localStorage.getItem('test-layout'))
-            }}
-            className="px-3 py-1 bg-red-500/20 text-red-300 rounded text-xs border border-red-400/30"
-          >
-            Debug Layout
-          </button>
-        </div>
-      )}
 
       {/* Control Panel */}
       <div className={`absolute top-8 right-8 z-40 flex gap-4 transition-all duration-300 ${showEditControls || isEditMode ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'}`}>
@@ -408,18 +352,7 @@ function App() {
               onClick={() => {
                 const newShowWidgetPanel = !showWidgetPanel
                 setShowWidgetPanel(newShowWidgetPanel)
-                // Clear timeout when opening widget panel
-                if (newShowWidgetPanel && editControlsTimeout) {
-                  clearTimeout(editControlsTimeout)
-                  setEditControlsTimeout(null)
-                }
-                // Set timeout when closing widget panel (if settings panel is also closed)
-                if (!newShowWidgetPanel && !showSettingsPanel) {
-                  const timeoutId = setTimeout(() => {
-                    setShowEditControls(false)
-                  }, 5000)
-                  setEditControlsTimeout(timeoutId)
-                }
+                manageEditControlsTimeout(!newShowWidgetPanel)
               }}
               className={`relative p-3 rounded-xl ${
                 appearance.uiStyle === 'liquid-glass'
@@ -439,18 +372,7 @@ function App() {
               onClick={() => {
                 const newShowSettingsPanel = !showSettingsPanel
                 setShowSettingsPanel(newShowSettingsPanel)
-                // Clear timeout when opening settings panel
-                if (newShowSettingsPanel && editControlsTimeout) {
-                  clearTimeout(editControlsTimeout)
-                  setEditControlsTimeout(null)
-                }
-                // Set timeout when closing settings panel (if widget panel is also closed)
-                if (!newShowSettingsPanel && !showWidgetPanel) {
-                  const timeoutId = setTimeout(() => {
-                    setShowEditControls(false)
-                  }, 5000)
-                  setEditControlsTimeout(timeoutId)
-                }
+                manageEditControlsTimeout(!newShowSettingsPanel)
               }}
               className={`relative p-3 rounded-xl ${
                 appearance.uiStyle === 'liquid-glass'
@@ -535,7 +457,6 @@ function App() {
                     onClick={(e) => {
                       e.stopPropagation()
                       e.preventDefault()
-                      console.log('Deleting widget:', widget.id)
                       handleRemoveWidget(widget.id)
                     }}
                     onMouseDown={(e) => {

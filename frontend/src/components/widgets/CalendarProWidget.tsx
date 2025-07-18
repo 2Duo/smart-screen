@@ -658,7 +658,7 @@ export default function CalendarProWidget({
             onClose={() => setIsSettingsOpen(false)}
             tabs={tabs}
             activeTab={activeTab}
-            onTabChange={setActiveTab}
+            onTabChange={(tabId) => setActiveTab(tabId as 'auth' | 'display' | 'font')}
             position="contained"
             width="md"
           >
@@ -701,7 +701,7 @@ export default function CalendarProWidget({
             onClose={() => setIsSettingsOpen(false)}
             tabs={tabs}
             activeTab={activeTab}
-            onTabChange={setActiveTab}
+            onTabChange={(tabId) => setActiveTab(tabId as 'auth' | 'display' | 'font')}
             position="contained"
             width="md"
           >
@@ -774,7 +774,7 @@ export default function CalendarProWidget({
             onClose={() => setIsSettingsOpen(false)}
             tabs={tabs}
             activeTab={activeTab}
-            onTabChange={setActiveTab}
+            onTabChange={(tabId) => setActiveTab(tabId as 'auth' | 'display' | 'font')}
             position="contained"
             width="md"
           >
@@ -817,7 +817,7 @@ export default function CalendarProWidget({
             onClose={() => setIsSettingsOpen(false)}
             tabs={tabs}
             activeTab={activeTab}
-            onTabChange={setActiveTab}
+            onTabChange={(tabId) => setActiveTab(tabId as 'auth' | 'display' | 'font')}
             position="contained"
             width="md"
           >
@@ -863,7 +863,7 @@ export default function CalendarProWidget({
             onClose={() => setIsSettingsOpen(false)}
             tabs={tabs}
             activeTab={activeTab}
-            onTabChange={setActiveTab}
+            onTabChange={(tabId) => setActiveTab(tabId as 'auth' | 'display' | 'font')}
             position="contained"
             width="md"
           >
@@ -1134,7 +1134,7 @@ export default function CalendarProWidget({
           onClose={() => setIsSettingsOpen(false)}
           tabs={tabs}
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={(tabId) => setActiveTab(tabId as 'auth' | 'display' | 'font')}
           position="contained"
           width="md"
         >

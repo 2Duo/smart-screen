@@ -4,7 +4,7 @@ import { createHash } from 'crypto';
 export interface ValidationResult {
   isValid: boolean;
   error?: string;
-  sanitized?: string;
+  sanitized?: any;
 }
 
 export class InputValidator {

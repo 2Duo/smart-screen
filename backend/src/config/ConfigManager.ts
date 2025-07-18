@@ -106,7 +106,7 @@ export class ConfigManager {
       if (sensitiveFields.includes(key as any)) {
         sanitized[key as keyof EnvConfig] = '***REDACTED***' as any;
       } else {
-        sanitized[key as keyof EnvConfig] = value;
+        sanitized[key as keyof EnvConfig] = value as any;
       }
     }
     return sanitized;

@@ -16,32 +16,12 @@ dotenv.config();
 
 const app = express();
 
-// SSL証明書の存在確認とHTTPS対応
-let server;
-let isHttps = false;
+// Use HTTP server (SSL certificates removed for security)
+const server = createServer(app);
+const isHttps = false;
 
-try {
-  const keyPath = path.resolve(__dirname, '../server.key');
-  const certPath = path.resolve(__dirname, '../server.crt');
-  
-  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
-    // HTTPS サーバーを作成
-    const credentials = {
-      key: fs.readFileSync(keyPath),
-      cert: fs.readFileSync(certPath)
-    };
-    server = createHttpsServer(credentials, app);
-    isHttps = true;
-    console.log('🔒 Backend HTTPS server created');
-  } else {
-    // HTTP サーバーを作成
-    server = createServer(app);
-    console.log('📡 Backend HTTP server created');
-  }
-} catch (error) {
-  console.log('SSL certificates not found, using HTTP');
-  server = createServer(app);
-  isHttps = false;
+if (process.env.NODE_ENV !== 'production') {
+  console.log('📡 Backend HTTP server created');
 }
 // Socket.io connection tracking for rate limiting
 const socketConnections = new Map<string, { count: number; lastConnected: number }>();
@@ -82,7 +62,7 @@ const io = new Server(server, {
   }
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT) || 3001;
 
 // Trust proxy for local network requests
 app.set('trust proxy', true);
@@ -399,11 +379,12 @@ app.get('/api/weather', weatherApiLimiter, async (req, res) => {
     });
     
     // Don't forget to add the last rain period if it exists
-    if (currentRainPeriod !== null && currentRainPeriod.start && currentRainPeriod.end && typeof currentRainPeriod.maxProbability === 'number') {
+    if (currentRainPeriod !== null) {
+      const period = currentRainPeriod as { start: Date; end: Date; maxProbability: number };
       rainPeriods.push({
-        start: currentRainPeriod.start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-        end: currentRainPeriod.end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-        probability: Math.round(currentRainPeriod.maxProbability * 100)
+        start: period.start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+        end: period.end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+        probability: Math.round(period.maxProbability * 100)
       });
     }
 
@@ -915,7 +896,7 @@ app.get('/api/calendar/events', calendarApiLimiter, async (req, res) => {
       });
     }
     
-    const validDays: number = daysValidation.sanitized || 7;
+    const validDays: number = Number(daysValidation.sanitized) || 7;
 
     const now = new Date();
     const endDate = new Date(now.getTime() + validDays * 24 * 60 * 60 * 1000);
