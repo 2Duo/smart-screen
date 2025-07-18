@@ -119,33 +119,233 @@ npm run dev
 - **表示要素**: 秒針、日付、曜日の表示/非表示
 - **カラー**: 文字色と背景の調整
 
-## 🔧 本番環境での運用
+## 🚀 本番環境での運用
 
-### 本番ビルド
+本番環境（実際のタブレットやディスプレイ）で運用する場合の手順です。
+
+### 🎯 方法1: 開発サーバーでの運用（推奨・簡単）
+
+最も簡単で安定した方法です。ほとんどの用途に十分です。
+
 ```bash
-# フロントエンドのビルド
-cd frontend
-npm run build
+# 1. APIキーを本番用に設定
+cd backend
+echo "OPENWEATHER_API_KEY=YOUR_API_KEY_HERE" > .env
+echo "NODE_ENV=production" >> .env
 
-# バックエンドのビルド
-cd ../backend
-npm run build
+# 2. サーバーを起動（常時稼働）
+./start.sh
+
+# 3. ブラウザでアクセス
+# http://localhost:5173 をブックマークしてフルスクリーン表示
 ```
 
-### 本番サーバーの起動
+**💡 この方法のメリット：**
+- セットアップが簡単
+- 設定変更が即座に反映
+- トラブル時の対応が容易
+- デバッグ機能が使える
+
+### 🏭 方法2: 本番ビルドでの運用（高パフォーマンス）
+
+より高いパフォーマンスが必要な場合や、複数台での運用時に推奨。
+
+#### ステップ1: ビルドの作成
 ```bash
-# バックエンド本番起動
+# フロントエンドの本番ビルド（5分程度）
+cd frontend
+npm run build
+# ✅ dist フォルダに最適化されたファイルが作成される
+
+# バックエンドのビルド（1分程度）
+cd ../backend
+npm run build
+# ✅ dist フォルダにサーバーファイルが作成される
+```
+
+#### ステップ2: 本番サーバーの起動
+
+##### A. 簡単な方法（Node.jsのみ）
+```bash
+# バックエンドサーバーを起動
 cd backend
 npm start
 
-# フロントエンド配信（Nginxなど推奨）
-# frontend/dist フォルダをWebサーバーで配信
+# ブラウザで http://localhost:3001/static にアクセス
+# または frontend/dist/index.html をブラウザで直接開く
 ```
 
-### パフォーマンス最適化
-- **Gzip圧縮**: 有効（161KB → さらに圧縮可能）
-- **キャッシュ設定**: ブラウザキャッシュ対応
-- **Code Splitting**: 動的インポートによる最適化済み
+##### B. 本格的な方法（Nginx使用 - Linux/Mac）
+```bash
+# 1. Nginxをインストール
+# Ubuntu: sudo apt install nginx
+# Mac: brew install nginx
+
+# 2. 設定ファイルを作成
+sudo tee /etc/nginx/sites-available/smartdisplay <<EOF
+server {
+    listen 80;
+    server_name localhost;
+    
+    # フロントエンド（静的ファイル）
+    location / {
+        root /path/to/smart-screen/frontend/dist;
+        try_files \$uri \$uri/ /index.html;
+    }
+    
+    # バックエンドAPI
+    location /api/ {
+        proxy_pass http://localhost:3001;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+    }
+}
+EOF
+
+# 3. 設定を有効化
+sudo ln -s /etc/nginx/sites-available/smartdisplay /etc/nginx/sites-enabled/
+sudo systemctl reload nginx
+
+# 4. バックエンドサーバーを起動
+cd backend && npm start
+
+# 5. ブラウザで http://localhost にアクセス
+```
+
+### 🖥️ タブレット・ディスプレイでの表示設定
+
+#### フルスクリーン表示の設定
+```javascript
+// ブラウザのコンソール（F12）で実行
+document.documentElement.requestFullscreen()
+
+// 自動でフルスクリーンにする場合（ブックマークレット）
+javascript:document.documentElement.requestFullscreen()
+```
+
+#### ブラウザ設定（Chrome推奨）
+1. **キオスクモード**: `chrome --kiosk http://localhost:5173`
+2. **自動起動**: スタートアップにブラウザを追加
+3. **スリープ防止**: 電源設定で「スリープしない」に設定
+
+#### タブレット設定
+1. **画面の向き**: 横向き固定
+2. **自動ロック**: オフ
+3. **通知**: オフ
+4. **ホームボタン**: 無効化（Android）
+
+### 🔄 自動起動の設定
+
+#### Windows
+```batch
+@echo off
+cd /d "C:\path\to\smart-screen"
+start cmd /k "cd backend && npm start"
+timeout /t 5
+start chrome --kiosk http://localhost:5173
+```
+
+#### Mac
+```bash
+#!/bin/bash
+cd ~/smart-screen
+osascript -e 'tell app "Terminal" to do script "cd ~/smart-screen && ./start.sh"'
+sleep 5
+open -a "Google Chrome" --args --kiosk http://localhost:5173
+```
+
+#### Linux (systemd)
+```ini
+# /etc/systemd/system/smartdisplay.service
+[Unit]
+Description=Smart Display Service
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/smart-screen
+ExecStart=/usr/bin/npm start
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 📱 リモートアクセス（同一LAN内）
+
+他のデバイスからアクセスする場合：
+
+```bash
+# サーバーのIPアドレスを確認
+ip addr show    # Linux
+ifconfig        # Mac
+ipconfig        # Windows
+
+# 例：192.168.1.100 の場合
+# http://192.168.1.100:5173 でアクセス可能
+```
+
+### 🛡️ セキュリティ設定（本番環境）
+
+```bash
+# 1. ファイアウォール設定（必要なポートのみ開放）
+sudo ufw allow 22    # SSH
+sudo ufw allow 80    # HTTP
+sudo ufw allow 5173  # 開発サーバー（必要に応じて）
+sudo ufw enable
+
+# 2. 自動更新の無効化（表示の安定性のため）
+# システム設定で自動更新をオフにする
+
+# 3. 不要なサービスの停止
+# ウイルススキャンなどの重いプロセスを停止
+```
+
+### 🔧 メンテナンス
+
+#### 日常のメンテナンス
+```bash
+# ログの確認
+tail -f backend/logs/app.log
+
+# 再起動
+./restart.sh
+
+# 設定のバックアップ
+cp -r ~/.smartdisplay-config ~/backup/
+```
+
+#### トラブル時の対応
+```bash
+# プロセスの確認
+ps aux | grep node
+
+# ポートの確認
+netstat -tlnp | grep :3001
+
+# 強制終了・再起動
+pkill -f "npm.*start"
+./start.sh
+```
+
+### 📊 パフォーマンス監視
+
+```bash
+# システムリソースの監視
+htop          # CPU・メモリ使用率
+iotop         # ディスクI/O
+nethogs       # ネットワーク使用量
+
+# アプリケーションの監視
+curl http://localhost:3001/health  # ヘルスチェック
+```
+
+**💡 運用のコツ：**
+- 最初は「方法1」から始めて、慣れてから「方法2」に移行
+- 24時間運用の場合は再起動スケジュールを設定（週1回など）
+- 設定変更前は必ずバックアップを取る
+- ネットワーク環境の変更時はIPアドレスを確認
 
 ## 🛠️ 開発者向け情報
 
@@ -201,49 +401,193 @@ smart-screen/
 
 ## 🐛 トラブルシューティング
 
-### よくある問題
+### 🚨 緊急時の対応
 
-#### 天気が表示されない
+#### アプリが起動しない
 ```bash
-# APIキーを確認
-cat backend/.env
-# OPENWEATHER_API_KEY が設定されているか確認
+# 1. まずはこれを試す
+cd smart-screen
+./start.sh
 
-# サーバーログを確認
+# 2. それでもダメな場合
 cd backend
-npm run dev
-# エラーメッセージを確認
+rm -rf node_modules
+npm install
+cd ../frontend  
+rm -rf node_modules
+npm install
+cd ..
+./start.sh
 ```
 
-#### ページが真っ白になる
+#### 画面が真っ白になる
 ```bash
-# ブラウザの開発者ツールを開く（F12）
-# Console タブでエラーを確認
+# 📱 ブラウザで F12 を押してConsoleタブを開く
+# ❌ エラーメッセージをメモする
 
-# ローカルストレージをクリア
+# 🔄 データをリセット
 localStorage.clear()
 location.reload()
+
+# 🆕 それでもダメなら新しいタブで開く
+# http://localhost:5173?test=true
 ```
 
-#### ポート競合エラー
-```bash
-# ポートを変更
-cd frontend
-PORT=5174 npm run dev
+### ⚠️ よくある問題と解決法
 
-cd backend  
-PORT=3002 npm run dev
+#### 1. 天気が「読み込み中...」のまま
+**原因**: APIキーが設定されていない
+
+**解決法**:
+```bash
+# APIキーの確認
+cd backend
+cat .env
+
+# 何も表示されない場合はAPIキーを設定
+echo "OPENWEATHER_API_KEY=あなたのAPIキー" > .env
+echo "NODE_ENV=production" >> .env
+
+# サーバーを再起動
+cd ..
+./start.sh
 ```
 
-### ログの確認
+#### 2. ウィジェットが追加できない
+**原因**: 編集モードになっていない
+
+**解決法**:
+1. 画面右上隅を長押し（3秒）
+2. または画面右端から左へスワイプ
+3. または キーボードの「M」キーを押す
+4. ボタンが表示されたら ➕ をクリック
+
+#### 3. 「ポートが使用中」エラー
+**原因**: 他のアプリがポートを使用している
+
+**解決法**:
 ```bash
-# バックエンドログ
+# 使用中のプロセスを確認
+lsof -i :3001
+lsof -i :5173
+
+# プロセスを終了（PIDを確認して実行）
+kill -9 [PID番号]
+
+# または全部終了
+pkill -f node
+pkill -f npm
+
+# 再起動
+./start.sh
+```
+
+#### 4. カレンダーが表示されない
+**原因**: Google認証が完了していない
+
+**解決法**:
+1. カレンダーウィジェットの設定ボタンをクリック
+2. 「認証」タブを選択
+3. 「Googleでログイン」をクリック
+4. ブラウザでGoogleアカウントにログイン
+5. 許可を与える
+
+#### 5. レイアウトが保存されない
+**原因**: ブラウザのプライベートモードまたはストレージ制限
+
+**解決法**:
+```bash
+# ブラウザの設定を確認
+# - プライベート/シークレットモードを解除
+# - Cookieとサイトデータを許可
+
+# 手動でデータを確認
+# F12 > Application > Local Storage > localhost:5173
+```
+
+### 🔍 詳細なログ確認
+
+#### サーバーログの見方
+```bash
 cd backend
 npm run dev
 
-# フロントエンドログ
-# ブラウザの開発者ツール（F12）> Console
+# 以下のようなログが正常
+# ✅ Smart Display Server running on http://localhost:3001
+# ✅ Socket connected
+# ❌ Error: Invalid API key (要修正)
+# ❌ EADDRINUSE: Port 3001 already in use (要修正)
 ```
+
+#### ブラウザログの見方
+1. **F12** を押して開発者ツールを開く
+2. **Console** タブをクリック
+3. 正常な場合: `App initialized` などのメッセージ
+4. エラーの場合: 赤いメッセージが表示される
+
+### 🔄 完全リセット手順
+
+すべてがうまくいかない場合の最終手段：
+
+```bash
+# 1. すべてのプロセスを終了
+pkill -f node
+pkill -f npm
+
+# 2. ブラウザのデータをクリア
+# Chrome: 設定 > プライバシー > 閲覧履歴を消去
+# または F12 > Application > Clear storage
+
+# 3. プロジェクトを再インストール
+cd smart-screen
+rm -rf frontend/node_modules backend/node_modules
+rm -rf frontend/dist backend/dist
+
+cd backend && npm install
+cd ../frontend && npm install
+
+# 4. 環境変数を再設定
+cd ../backend
+echo "OPENWEATHER_API_KEY=あなたのAPIキー" > .env
+echo "NODE_ENV=production" >> .env
+
+# 5. 再起動
+cd ..
+./start.sh
+```
+
+### 📞 サポートが必要な場合
+
+#### 自己診断チェックリスト
+- [ ] Node.js 18以上がインストールされている（`node --version`）
+- [ ] npm が正常に動作する（`npm --version`）
+- [ ] OpenWeatherMap APIキーが設定されている
+- [ ] ポート3001と5173が空いている
+- [ ] ブラウザが最新版である
+- [ ] インターネット接続が正常である
+
+#### エラーレポートの作成
+問題を報告する際は、以下の情報を含めてください：
+
+```bash
+# システム情報
+uname -a                    # OS情報
+node --version             # Node.jsバージョン
+npm --version              # npmバージョン
+
+# エラーログ
+cd backend && npm run dev 2>&1 | tee error.log
+# error.log ファイルを添付
+
+# ブラウザ情報
+# F12 > Console のスクリーンショット
+```
+
+**💡 困ったときのヒント：**
+- まずは再起動（ブラウザ、サーバー、PC）を試す
+- エラーメッセージは必ず最後まで読む
+- 設定を変更した場合は元に戻してみる
+- 同じ環境で動いている人に相談する
 
 ## 🤝 コントリビューション
 
